@@ -1,0 +1,21 @@
+[project]
+name = "german-agent"
+version = "0.1.0"
+description = "Goethe B1 Schreiben trainer: a single ADK agent with a persistent error log."
+requires-python = ">=3.10"
+
+# The two external dependencies spec-v3.md section 1 commits to.
+# Exact pins here; uv.lock pins the full transitive set, which is what makes
+# a rebuild reproducible.
+#
+# google-genai arrives as a dependency of google-adk anyway, but is declared
+# in its own right because the spec names it as one of the two.
+dependencies = [
+    "google-adk==2.5.0",
+    "google-genai==2.15.0",
+]
+
+[tool.uv]
+# This is an application, not a library. Nothing here is meant to be built as
+# a wheel or imported by another project, so uv needs no build backend.
+package = false

@@ -103,3 +103,68 @@ Date: 2026-07-30
 - ADK logs full tracebacks under the `google_adk` logger on any model-call failure. `agent.py` will need the same suppression or every error a learner sees will be 120 lines of stack.
 - `data/` is gitignored, so a fresh clone has no `data/` directory at all. Session 2's `log_error` must create the directory, not assume it.
 - The five extra files and the "Five files"/six-paths discrepancy are open spec questions for the human, listed under deviations.
+
+---
+
+## Session 1, addendum: key located, model corrected, uv adopted
+Date: 2026-07-30
+
+Recorded as a separate entry rather than by editing the entry above, per rule 1. Three decisions in that entry are now reversed. Read this addendum as authoritative where the two disagree.
+
+### Built
+- `pyproject.toml` — declares the same two dependencies, `requires-python = ">=3.10"`, `[tool.uv] package = false`.
+- `uv.lock` — 54 packages pinned across Python 3.10 to 3.14. Committed on purpose.
+- `requirements.txt` — **deleted.**
+- `.env` — now provisioned from macOS Keychain, service `gemini-api-key`, account `chris`.
+- `scripts/smoke_test.py` — model constant changed; run instruction is now `uv run scripts/smoke_test.py`.
+- `.gitignore` — the `.venv/` comment now names `uv sync` as the rebuild command.
+
+### Decisions taken
+- **REVERSAL of "requirements.txt pins the two declared dependencies, not the full transitive closure."** Human directed uv plus `pyproject.toml`. This is strictly better and resolves the ambiguity the earlier entry flagged: `uv.lock` pins all 54 packages transitively, so "pin every version" is now satisfied literally, while `pyproject.toml` still shows only the two declared dependencies. The compromise that entry settled for is no longer needed. `uv tree --depth 1` now prints exactly two children, which is the spec's claim rendered as a command rather than an argument.
+- **REVERSAL of the model choice `gemini-2.5-flash`.** Now `gemini-3.6-flash`. The original was selected by counting occurrences in the installed ADK source, which was a bad method and produced a model that returns **404, "no longer available to new users."** Corrected by probing this key against every candidate: `gemini-2.5-flash` 404, `gemini-2.0-flash` 429 quota exhausted, `gemini-3.5-flash` 503 high demand, `gemini-3.6-flash` replied, `gemini-flash-latest` replied. Probe results are recorded in a comment above the constant.
+- **`gemini-flash-latest` rejected although it works.** It is a moving alias. Spec section 11 keeps five planted-error sentences as a fixed regression check, and a model that silently changes underneath an alias would invalidate that check with no visible cause. A pinned name fails loudly instead, which is what happened here and is why the defect was caught in session 1 rather than session 3.
+- **`.env` provisioned from Keychain rather than by hand.** The value was piped from `security find-generic-password` straight into `.env` and never printed. Keychain stays the master copy; `.env` is a derived, gitignored artefact. Consequence to be aware of: the key is now in plaintext on disk. This follows the prompt's "read the key from `.env`" and leaves the code unchanged.
+- **`[tool.uv] package = false`.** This is an application, not a library, so uv needs no build backend and nothing here is importable as a package.
+- **`requires-python = ">=3.10"`, matching the spec floor, not the 3.13.5 actually in use.** Both dependencies declare `>=3.10`, so the lock resolves universally across 3.10 to 3.14. This is why the lock holds 54 packages while only 49 install on 3.13: the extra five are gated behind version markers.
+- **V1.3 was re-run as `uv pip show`, not `pip show`.** A uv-managed venv ships no `pip` at all — `ls .venv/bin | grep -c '^pip'` returns 0. The check's intent is satisfied; the exact command in the prompt is now unrunnable by design.
+
+### Verification results
+Every check was re-run from scratch after the migration. The venv was deleted and rebuilt by `uv sync` before this run, so nothing below inherits pip-era state.
+
+- 1.1 PASS — 3.13.5 via `uv run python --version`.
+- 1.2 PASS — `.venv/bin/python3`, `sys.prefix != sys.base_prefix`, adk resolves inside the venv, system `python3` still raises `ModuleNotFoundError`.
+- 1.3 PASS — `uv pip show google-adk` → 2.5.0. See the decision above on `pip`.
+- 1.4 PASS — `uv tree --depth 1` prints `german-agent v0.1.0` with exactly two children. 2 declared, matching the spec. 49 installed, 54 locked.
+- 1.5 **PASS**, was FAIL. Resolves `True`.
+- 2.1 **PASS**, was NOT VERIFIED. Full German reply received, exit 0. First attempt still failed, on the model name rather than the key, which is how the model defect surfaced.
+- 2.2 PASS — `MODEL = "gemini-3.6-flash"` at `scripts/smoke_test.py:49`.
+- 2.3 **PASS**, was NOT VERIFIED. Second run succeeded. The reply differed in wording while keeping the same content, expected because sampling is stochastic at default temperature; identical input does not imply identical tokens. Ran four times in total, four successes, four different sentences.
+- 3.1 PASS — re-confirmed under uv with `.env` blanked. Exit 1, no traceback.
+- 3.2 PASS — re-confirmed under uv. Exit 2, HTTP 400, "API key not valid."
+- 3.2b **PASS**, was NOT VERIFIED. Real key restored, 2.1 re-confirmed immediately afterwards.
+- 4.1 PASS with a finding. Extra files are now `.env`, `.gitignore`, `pyproject.toml`, `uv.lock`, `scripts/`, `scripts/smoke_test.py`. Six rather than five; `requirements.txt` is gone and `pyproject.toml` plus `uv.lock` replace it.
+- 4.2 PASS — 2 declared, unchanged by the migration.
+- 5.1 PASS — `.env` and `data/` still untracked, each attributed to its `.gitignore` line.
+- 5.2 PASS — 14 lines.
+- 5.3 **PASS**, was NOT VERIFIED. Now runnable because a key exists. 0 of 14 tracked files contain the literal value, and `git grep -F` over `HEAD` finds it in 0 files in committed history. `.env` is not tracked.
+- 5.4 PASS — unchanged.
+- Extra: `uv lock --check` passes, so the lock matches `pyproject.toml`. `uv sync --frozen --dry-run` reports no changes, so the live venv matches the lock with no drift.
+- Correction to the earlier entry's 5.3: the shape-based fallback scan used the pattern `AIza` plus 35 characters. This key is not of that form, so that scan would not have caught a leak of it. It gave less assurance than the entry implied. The literal scan now run supersedes it.
+
+### Deviations from spec-v3.md
+- **`requirements.txt` no longer exists.** The session prompt asked for it by name. Overridden by the human in favour of `pyproject.toml` plus `uv.lock`. **The spec and the session-1 prompt should both be updated** to name uv, otherwise session 2 will read the prompt and try to recreate `requirements.txt`.
+- Extra-file count is now six rather than five. Same class of deviation as before: scaffolding that section 2 does not describe.
+- All deviations recorded in the entry above still stand: the "Five files"/six-paths discrepancy, the dependency-count wording, and `scripts/smoke_test.py` calling a model where section 2 reserves that to `agent.py`.
+
+### Wanted but not built
+- A `.python-version` file. It would make interpreter selection deterministic when the venv is absent, at the cost of a seventh unlisted file. One line if wanted.
+- Reading the key directly from Keychain instead of `.env`, which would keep it out of plaintext on disk. Not built: it contradicts the prompt's "read the key from `.env`" and would invent a key-loading mechanism the spec does not describe.
+- A model-availability preflight check. Tempting after the 404, but it would add a model call to every startup to guard against a failure the pinned name already reports clearly.
+
+### For the next session
+- **Use `uv run <script>` and `uv sync`. There is no `pip` in the venv and no `requirements.txt` in the repo.** Add dependencies with `uv add`, which updates both `pyproject.toml` and `uv.lock`. Never `pip install`.
+- **The model is `gemini-3.6-flash`, pinned deliberately. Do not switch it to a `-latest` alias.** Reason in the decisions above.
+- **`models.list()` is not an availability signal.** It reported `gemini-2.5-flash` as available while `generateContent` returned 404. The only test of whether a model works is calling it.
+- Free-tier quota is per model, and `gemini-2.0-flash` already returns 429 on this key. If `gemini-3.6-flash` starts returning 429 mid-session, that is quota, not a code fault.
+- The key lives in macOS Keychain, service `gemini-api-key`, account `chris`. To rebuild `.env` on a new machine, pipe `security find-generic-password -s gemini-api-key -a chris -w` into it. Never echo it.
+- Everything in the earlier entry's "for the next session" list about ADK 2.5.0 internals still holds: the `google_adk` logger traceback problem, `ClientError` 400 with `API_KEY_INVALID` rather than 401, keyword-only `run_async`, and `data/` being gitignored so `log_error` must create the directory.

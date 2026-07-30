@@ -8,7 +8,7 @@ section 2, agent.py is the only file permitted to call a model in the finished
 system; this script is a temporary exception that exists so session 1 can be
 verified before agent.py has any content.
 
-Run:  .venv/bin/python scripts/smoke_test.py
+Run:  uv run scripts/smoke_test.py
 
 Exit codes, so the verification checks can tell failures apart:
   0  reply received
@@ -33,7 +33,20 @@ from google.genai import types
 
 # The single model string for this script. Printed by verification check 2.2,
 # so it is read from here rather than recalled from memory.
-MODEL = "gemini-2.5-flash"
+#
+# Chosen by probing this key against every Flash model, not from documentation:
+#   gemini-2.5-flash    404, "no longer available to new users"
+#   gemini-2.0-flash    429, free-tier quota exhausted for this key
+#   gemini-3.5-flash    503, high demand
+#   gemini-3.6-flash    replied
+#   gemini-flash-latest replied, but it is a moving alias
+# The alias is rejected on purpose. Spec section 11 keeps five planted-error
+# sentences as a fixed regression check, and a model that changes under the
+# alias would invalidate that check with no visible cause.
+#
+# Note for whoever revisits this: models.list() reports gemini-2.5-flash as
+# available. Only an actual generateContent call reveals that it is not.
+MODEL = "gemini-3.6-flash"
 
 # The one German instruction sent to the model. A German reply proves both
 # reachability and that the model will answer in German at all.

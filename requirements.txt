@@ -1,9 +1,0 @@
-# The two external dependencies spec-v3.md section 1 commits to.
-# Versions pinned exactly; installed and verified in session 1.
-#
-# google-genai arrives as a dependency of google-adk, but is pinned here
-# because the spec names it as a dependency in its own right.
-#
-# Rebuild:  python3.13 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
-google-adk==2.5.0
-google-genai==2.15.0
