@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside the Schreiben Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F4EF; --paper2:#EAEAE1; --card:#FCFCFA;
+  --ink:#15181C; --ink2:#5A6069; --ink3:#8A8F97;
+  --rule:#D6D6CB;
+  --fn:#165C56;         /* deterministic: plain function */
+  --fn-bg:#E2EFEC;
+  --llm:#5B45A0;        /* model call */
+  --llm-bg:#EBE6F6;
+  --err:#A93028;        /* German correction */
+  --err-bg:#F7E6E4;
+  --data:#8A6A12;       /* state / storage */
+  --data-bg:#F4EDD9;
+  --shadow:0 1px 0 rgba(21,24,28,.06), 0 8px 24px -12px rgba(21,24,28,.22);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --disp:'Archivo',system-ui,sans-serif;
+  --body:'Source Serif 4',Georgia,serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:16.5px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 28px}
+
+/* ---------- type ---------- */
+h1,h2,h3,.lbl,.btn,nav a,th{font-family:var(--disp)}
+h2{font-size:clamp(26px,3.4vw,40px);font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:0 0 6px}
+h3{font-size:17px;font-weight:800;letter-spacing:-.01em;margin:0 0 8px}
+.lbl{font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ink3)}
+.sub{color:var(--ink2);max-width:64ch;margin:0 0 22px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:50;background:rgba(244,244,239,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+nav .wrap{display:flex;align-items:center;gap:18px;height:54px;overflow-x:auto}
+nav .brand{font-family:var(--disp);font-weight:900;font-size:13px;letter-spacing:-.01em;white-space:nowrap}
+nav a{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);text-decoration:none;white-space:nowrap;padding:4px 0;border-bottom:2px solid transparent}
+nav a:hover,nav a:focus-visible{color:var(--ink);border-bottom-color:var(--ink)}
+
+/* ---------- section frame ---------- */
+section{padding:66px 0 10px;border-top:1px solid var(--rule)}
+section:first-of-type{border-top:none}
+.shead{display:flex;gap:16px;align-items:baseline;margin-bottom:4px}
+.snum{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink3);padding-top:10px}
+
+/* ---------- hero ---------- */
+.hero{padding:70px 0 54px;border-top:none}
+.eyebrow{font-family:var(--disp);font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--fn);margin-bottom:18px}
+h1{font-family:var(--disp);font-weight:900;font-size:clamp(38px,6.4vw,74px);line-height:.94;letter-spacing:-.035em;margin:0 0 20px;max-width:16ch}
+h1 em{font-style:normal;color:var(--llm)}
+.lede{font-size:19px;color:var(--ink2);max-width:56ch;margin:0 0 34px}
+
+.demo{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:22px;box-shadow:var(--shadow);max-width:760px}
+.demo .row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;opacity:0;transform:translateY(6px);transition:opacity .5s,transform .5s}
+.demo .row.on{opacity:1;transform:none}
+.demo .tag{font-family:var(--disp);font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;padding:4px 7px;border-radius:4px;white-space:nowrap;margin-top:3px}
+.t-you{background:var(--paper2);color:var(--ink2)}
+.t-llm{background:var(--llm-bg);color:var(--llm)}
+.t-fn{background:var(--fn-bg);color:var(--fn)}
+.de{font-size:19px}
+.de s{text-decoration-color:var(--err);text-decoration-thickness:2px;color:var(--err)}
+.de b{color:var(--fn);font-weight:600}
+.jsonl{font-family:var(--mono);font-size:11.5px;line-height:1.75;background:var(--paper2);border-radius:6px;padding:11px 13px;overflow-x:auto;color:var(--ink2)}
+.jsonl .k{color:var(--ink3)}
+.jsonl .v{color:var(--ink)}
+.jsonl .cat{color:var(--err);font-weight:700}
+
+.btn{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;background:var(--ink);color:var(--paper);border:1px solid var(--ink);padding:9px 14px;border-radius:6px;cursor:pointer;transition:background .15s,color .15s}
+.btn:hover{background:transparent;color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.ghost:hover{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.32;cursor:not-allowed}
+.btn:focus-visible,a:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--llm);outline-offset:2px}
+
+/* ---------- generic cards ---------- */
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+/* ---------- §1 map ---------- */
+.maptop{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.legend{display:flex;gap:14px;flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:6px;font-size:11px;font-family:var(--disp);font-weight:700;letter-spacing:.04em;color:var(--ink2)}
+.dot{width:9px;height:9px;border-radius:50%}
+.maplay{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start}
+.nodes{display:flex;flex-direction:column;gap:10px}
+.node{display:flex;gap:12px;align-items:center;text-align:left;width:100%;background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--rule);border-radius:8px;padding:13px 15px;cursor:pointer;font:inherit;transition:transform .12s,box-shadow .12s,border-color .12s}
+.node:hover{transform:translateX(3px);box-shadow:var(--shadow)}
+.node[aria-pressed="true"]{box-shadow:var(--shadow)}
+.node .nm{font-family:var(--mono);font-size:13px;font-weight:700}
+.node .rl{font-size:13px;color:var(--ink2)}
+.node .kind{margin-left:auto;font-family:var(--disp);font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:3px 7px;border-radius:4px}
+.k-fn{border-left-color:var(--fn)!important} .k-fn .kind{background:var(--fn-bg);color:var(--fn)}
+.k-llm{border-left-color:var(--llm)!important} .k-llm .kind{background:var(--llm-bg);color:var(--llm)}
+.k-data{border-left-color:var(--data)!important} .k-data .kind{background:var(--data-bg);color:var(--data)}
+.detail{position:sticky;top:74px;background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px;min-height:250px}
+.detail dt{font-family:var(--disp);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);margin-top:14px}
+.detail dd{margin:3px 0 0;font-size:14.5px;color:var(--ink2)}
+
+/* ---------- §2 stepper ---------- */
+.steplay{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;align-items:start}
+.track{display:flex;gap:5px;margin-bottom:16px}
+.tick{flex:1;height:5px;border-radius:3px;background:var(--paper2);transition:background .25s}
+.tick.done{background:var(--ink3)}
+.tick.now{background:var(--ink)}
+.stage{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:22px;min-height:230px}
+.actor{display:inline-flex;align-items:center;gap:7px;font-family:var(--disp);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:4px 9px;border-radius:5px;margin-bottom:12px}
+.stage .why{font-size:14px;color:var(--ink2);border-top:1px dashed var(--rule);margin-top:14px;padding-top:12px}
+.ctxpanel{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px}
+.chip{display:flex;justify-content:space-between;gap:10px;font-family:var(--mono);font-size:11.5px;padding:7px 10px;border-radius:5px;margin-bottom:6px;background:var(--paper2);color:var(--ink2);animation:pop .3s ease}
+.chip.sys{background:var(--paper2)} .chip.mem{background:var(--data-bg);color:var(--data)}
+.chip.usr{background:var(--paper2)} .chip.tool{background:var(--fn-bg);color:var(--fn)}
+@keyframes pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.meters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;border-top:1px solid var(--rule);padding-top:14px}
+.meter .n{font-family:var(--disp);font-size:24px;font-weight:900;line-height:1}
+.meter .n.llm{color:var(--llm)} .meter .n.fn{color:var(--fn)}
+.meter .c{font-size:10px;font-family:var(--disp);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-top:3px}
+.ctrls{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;align-items:center}
+
+/* ---------- §3 context composer ---------- */
+.tog{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--rule);border-radius:8px;background:var(--card);cursor:pointer;margin-bottom:9px}
+.tog input{margin-top:4px;accent-color:var(--llm)}
+.tog .tn{font-family:var(--mono);font-size:12.5px;font-weight:700}
+.tog .td{font-size:13px;color:var(--ink2)}
+.bar{height:26px;border-radius:6px;background:var(--paper2);display:flex;overflow:hidden;margin:10px 0 6px}
+.bar span{transition:width .3s}
+.b-sys{background:var(--ink3)} .b-mem{background:var(--data)} .b-usr{background:var(--ink)} .b-tool{background:var(--fn)}
+
+/* ---------- §4 statelessness ---------- */
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.lane{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px}
+.lane.cron{border-color:var(--llm)}
+.memline{font-family:var(--mono);font-size:11.5px;padding:6px 9px;border-radius:5px;background:var(--paper2);margin-bottom:5px}
+.memline.gone{opacity:.28;text-decoration:line-through}
+.logline{font-family:var(--mono);font-size:11px;padding:5px 9px;border-radius:5px;background:var(--data-bg);color:var(--data);margin-bottom:4px}
+.empty{font-size:13px;color:var(--ink3);font-style:italic}
+
+/* ---------- §5 taxonomy ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.cchip{font-family:var(--mono);font-size:12px;padding:6px 11px;border-radius:20px;border:1px solid var(--rule);background:var(--card);cursor:pointer;transition:.12s}
+.cchip:hover{border-color:var(--ink2)}
+.cchip[aria-pressed="true"]{background:var(--err);border-color:var(--err);color:#fff}
+.exbox{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:20px}
+.exbox .wrong{font-size:19px;color:var(--err);margin-bottom:6px}
+.exbox .right{font-size:19px;color:var(--fn);font-weight:600;margin-bottom:12px}
+.quiz .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.opt{font-family:var(--mono);font-size:12px;padding:9px;border:1px solid var(--rule);border-radius:7px;background:var(--card);cursor:pointer}
+.opt.ok{background:var(--fn-bg);border-color:var(--fn);color:var(--fn)}
+.opt.no{background:var(--err-bg);border-color:var(--err);color:var(--err)}
+
+/* ---------- §6 deterministic core ---------- */
+.console{font-family:var(--mono);font-size:12px;background:var(--ink);color:#DCE6E4;border-radius:8px;padding:16px;min-height:190px;overflow-x:auto;white-space:pre-wrap;line-height:1.7}
+.console .g{color:#6FBFA8} .console .y{color:#D8B45A} .console .d{color:#7C848E}
+
+/* ---------- §7 cost ---------- */
+.slider{margin-bottom:16px}
+.slider label{display:flex;justify-content:space-between;font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px}
+.slider label b{font-family:var(--mono);font-size:13px;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--fn)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);text-align:left;padding:0 0 8px;border-bottom:1px solid var(--rule)}
+td{padding:9px 0;border-bottom:1px solid var(--rule)}
+td.num{font-family:var(--mono);text-align:right}
+.verdict{margin-top:14px;padding:13px 15px;border-radius:8px;background:var(--fn-bg);color:var(--fn);font-size:14px}
+.verdict.warn{background:var(--data-bg);color:var(--data)}
+
+/* ---------- §8 triggers ---------- */
+.trig{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:16px;cursor:pointer;transition:.15s;text-align:left;font:inherit;width:100%}
+.trig:hover{box-shadow:var(--shadow)}
+.trig .sym{font-size:15px;font-weight:600}
+.trig .rev{display:none;margin-top:11px;border-top:1px dashed var(--rule);padding-top:11px}
+.trig.open .rev{display:block}
+.trig .ext{font-family:var(--mono);font-size:13px;color:var(--llm);font-weight:700}
+.trig .con{font-size:13px;color:var(--ink2);margin-top:3px}
+
+footer{padding:44px 0 60px;border-top:1px solid var(--rule);margin-top:60px;color:var(--ink3);font-size:13.5px}
+
+@media(max-width:880px){
+  .maplay,.steplay,.grid2,.lanes{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr}
+  .detail{position:static}
+  .quiz .opts{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.modes{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.msg{display:flex;gap:12px;margin-bottom:13px;opacity:0;transform:translateY(5px);transition:opacity .35s,transform .35s}
+.msg.on{opacity:1;transform:none}
+.who{font-family:var(--disp);font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;padding:4px 7px;border-radius:4px;white-space:nowrap;height:fit-content;margin-top:2px;min-width:64px;text-align:center}
+.w-agent{background:var(--llm-bg);color:var(--llm)}
+.w-you{background:var(--paper2);color:var(--ink2)}
+.w-sys{background:var(--fn-bg);color:var(--fn)}
+.msg .bd{flex:1}
+.msg .de2{font-size:15.5px}
+.msg .nt{font-size:13px;color:var(--ink2);margin-top:6px;border-left:2px solid var(--rule);padding-left:10px}
+.elgrid{display:grid;grid-template-columns:auto 1fr;gap:0}
+.elgrid > div{padding:10px 12px;border-bottom:1px solid var(--rule)}
+.elgrid .lg1{font-family:var(--mono);font-size:12px;color:var(--err);white-space:nowrap}
+.elgrid .lg2{font-size:14.5px}
+@media(max-width:880px){.elgrid{grid-template-columns:1fr}.elgrid .lg1{border-bottom:none;padding-bottom:2px}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <span class="brand">SCHREIBEN TRAINER / INTERNALS</span>
+  <a href="#session">1 Session</a><a href="#map">2 Map</a><a href="#loop">3 Loop</a><a href="#ctx">4 Context</a>
+  <a href="#state">5 State</a><a href="#tax">6 Taxonomy</a><a href="#core">7 Core</a>
+  <a href="#cost">8 Cost</a><a href="#trig">9 Triggers</a>
+</div></nav>
+
+<!-- ================= HERO ================= -->
+<header class="wrap hero">
+  <div class="eyebrow">A2 → B1 · Goethe-Zertifikat · v1 architecture</div>
+  <h1>Two thirds of this agent is <em>not an agent</em>.</h1>
+  <p class="lede">One model call decides what is wrong with your German. Everything after that is file writes and arithmetic. This page shows you exactly where the line falls, and why that line is the whole architecture.</p>
+
+  <div class="demo" id="demo">
+    <div class="row" data-i="0"><span class="tag t-you">You write</span>
+      <div class="de" id="d0">Wenn ich Zeit habe, <s>ich gehe</s> ins Kino.</div></div>
+    <div class="row" data-i="1"><span class="tag t-llm">Model call</span>
+      <div class="de" id="d1"><b>Wenn ich Zeit habe, gehe ich ins Kino.</b><br>
+      <span style="font-size:14px;color:var(--ink2)">After a subordinate clause, the main clause verb comes first.</span></div></div>
+    <div class="row" data-i="2"><span class="tag t-fn">Function</span>
+      <div style="flex:1">
+        <div class="jsonl"><span class="k">"learner_text"</span>: <span class="v">"Wenn ich Zeit habe, ich gehe ins Kino."</span>,
+<span class="k">"category"</span>: <span class="cat">"word_order"</span>, <span class="k">"severity"</span>: <span class="v">"blocking"</span></div>
+        <div style="font-size:13px;color:var(--ink2);margin-top:8px">Appended to <code>log.jsonl</code>. Zero tokens. This line is why tomorrow's session is different from today's.</div>
+      </div></div>
+    <button class="btn ghost" id="replay" style="margin-top:6px">Replay</button>
+  </div>
+</header>
+
+
+<!-- ================= NEW: SESSION ================= -->
+<section id="session"><div class="wrap">
+  <div class="shead"><span class="snum">&sect;1</span><div>
+    <h2>How a session actually runs</h2>
+    <p class="sub">You open it. It never opens you: nothing runs on a schedule at v1. It asks which mode, reads your log, and then <em>it</em> speaks first. What you write is always an answer to something the agent engineered from your own worst patterns.</p>
+  </div></div>
+
+  <div class="modes">
+    <button class="btn" data-mode="auf">Aufgabe · exam drill · 20 min</button>
+    <button class="btn ghost" data-mode="ges">Gespr&auml;ch · conversation · 15 min</button>
+  </div>
+
+  <div class="grid2">
+    <div class="card" style="min-height:420px">
+      <div class="lbl" id="trTitle"></div>
+      <div id="transcript" style="margin-top:14px"></div>
+      <div class="ctrls">
+        <button class="btn" id="trNext">Next</button>
+        <button class="btn ghost" id="trReset">Restart</button>
+        <span class="lbl" id="trCount"></span>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="lbl">The mechanism</div>
+        <h3 style="margin-top:8px">Your log writes the prompt</h3>
+        <p style="font-size:14.5px;color:var(--ink2);margin:0">A generic tutor asks how your weekend was. This one reads <code>get_recent_errors(20)</code>, finds the pattern you fail most, and picks a question you cannot answer correctly without using that exact structure. Elicitation is targeted, so practice volume lands where the points are.</p>
+      </div>
+      <div class="card">
+        <div class="lbl" style="margin-bottom:10px">Click a weakness to see what it would ask</div>
+        <div class="chips" id="elchips"></div>
+        <div class="exbox" id="elbox" style="padding:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="lbl" style="margin-bottom:10px">Where each mode fits in a week</div>
+    <div class="elgrid">
+      <div class="lg1">Mon / Wed / Fri</div><div class="lg2">Gespr&auml;ch, 15 minutes. Turn by turn, one to three sentences per reply, roughly ten exchanges.</div>
+      <div class="lg1">Tue / Thu</div><div class="lg2">Aufgabe, 20 minutes. One full text, written under a timer, submitted once. This is the exam rehearsal.</div>
+      <div class="lg1">Sunday</div><div class="lg2">You run <code>review.py</code>. No conversation. It prints three patterns and next week&rsquo;s focus.</div>
+      <div class="lg1">Never</div><div class="lg2">The agent contacts you first. That is a later extension, and the trigger is you starting to skip days.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= MAP ================= -->
+<section id="map"><div class="wrap">
+  <div class="shead"><span class="snum">§2</span><div>
+    <h2>The system map</h2>
+    <p class="sub">Five files. Click any one to see what it does and what it costs. The colour is the point: green never calls a model.</p>
+  </div></div>
+
+  <div class="maptop">
+    <div class="legend">
+      <span class="lg"><i class="dot" style="background:var(--fn)"></i>Plain function</span>
+      <span class="lg"><i class="dot" style="background:var(--llm)"></i>Model call</span>
+      <span class="lg"><i class="dot" style="background:var(--data)"></i>State on disk</span>
+    </div>
+    <button class="btn ghost" id="costmode">Show cost per run</button>
+  </div>
+
+  <div class="maplay">
+    <div class="nodes" id="nodes"></div>
+    <dl class="detail" id="ndetail"></dl>
+  </div>
+</div></section>
+
+<!-- ================= §2 LOOP ================= -->
+<section id="loop"><div class="wrap">
+  <div class="shead"><span class="snum">§3</span><div>
+    <h2>One turn, step by step</h2>
+    <p class="sub">An agent is a loop: assemble context, call the model, execute whatever it asks for, call again. It stops when the model stops asking. Step through a single turn where you made two mistakes in one sentence.</p>
+  </div></div>
+
+  <div class="track" id="track"></div>
+  <div class="steplay">
+    <div>
+      <div class="stage" id="stage"></div>
+      <div class="ctrls">
+        <button class="btn ghost" id="prev">Back</button>
+        <button class="btn" id="next">Next step</button>
+        <button class="btn ghost" id="auto">Play</button>
+        <button class="btn ghost" id="reset">Reset</button>
+        <span class="lbl" id="stepcount"></span>
+      </div>
+    </div>
+    <div class="ctxpanel">
+      <div class="lbl" style="margin-bottom:10px">Context sent to the model</div>
+      <div id="ctxlist"></div>
+      <div class="meters">
+        <div class="meter"><div class="n llm" id="mCalls">0</div><div class="c">Model calls</div></div>
+        <div class="meter"><div class="n fn" id="mTools">0</div><div class="c">Tool runs</div></div>
+        <div class="meter"><div class="n" id="mTok">0</div><div class="c">Tokens sent</div></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= §3 CONTEXT ================= -->
+<section id="ctx"><div class="wrap">
+  <div class="shead"><span class="snum">§4</span><div>
+    <h2>Context is a budget, not a memory</h2>
+    <p class="sub">The model sees one thing: the text assembled for that call. It has no other access to your project. Switch parts off and watch what the tutor stops being able to do.</p>
+  </div></div>
+
+  <div class="grid2">
+    <div>
+      <div id="toggles"></div>
+      <div class="bar" id="cbar"></div>
+      <div class="lbl" id="ctotal"></div>
+    </div>
+    <div class="card">
+      <div class="lbl" style="margin-bottom:10px">Consequence</div>
+      <div id="conseq" style="font-size:15px"></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= §4 STATE ================= -->
+<section id="state"><div class="wrap">
+  <div class="shead"><span class="snum">§5</span><div>
+    <h2>What survives a restart</h2>
+    <p class="sub">This is the load-bearing lesson. A chat session accumulates history as you talk. A scheduled job starts blank every time. Run three invocations and watch which column keeps its knowledge.</p>
+  </div></div>
+
+  <div class="lanes">
+    <div class="lane">
+      <div class="lbl">Interactive session</div>
+      <h3>History accumulates</h3>
+      <div id="laneChat"></div>
+    </div>
+    <div class="lane cron">
+      <div class="lbl">Scheduled job, 06:00</div>
+      <h3>Every run starts empty</h3>
+      <div id="laneCron"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="lbl">log.jsonl on disk</div>
+    <div id="laneLog" style="margin-top:8px"></div>
+  </div>
+
+  <div class="ctrls">
+    <button class="btn" id="runInv">Run next invocation</button>
+    <button class="btn ghost" id="resetInv">Reset</button>
+    <span class="lbl" id="invNote"></span>
+  </div>
+</div></section>
+
+<!-- ================= §5 TAXONOMY ================= -->
+<section id="tax"><div class="wrap">
+  <div class="shead"><span class="snum">§6</span><div>
+    <h2>Thirteen categories, and no fourteenth</h2>
+    <p class="sub">The model must pick from a closed list. Let it invent labels and you get "case", "Kasus" and "dative error" as three separate weaknesses. Anything you intend to count has to be constrained at write time.</p>
+  </div></div>
+
+  <div class="chips" id="chips"></div>
+  <div class="grid2">
+    <div class="exbox" id="exbox"></div>
+    <div class="exbox quiz">
+      <div class="lbl">Classify it yourself</div>
+      <div class="wrong" id="qs" style="margin-top:8px"></div>
+      <div class="opts" id="qopts"></div>
+      <div id="qfb" style="font-size:14px;color:var(--ink2);margin-top:12px;min-height:42px"></div>
+      <button class="btn ghost" id="qnext">Another</button>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= §6 CORE ================= -->
+<section id="core"><div class="wrap">
+  <div class="shead"><span class="snum">§7</span><div>
+    <h2>The deterministic core</h2>
+    <p class="sub">Fourteen log entries from a simulated week. Run each function. None of them calls a model, none can hallucinate, and all four are unit-testable. This is the part that decides what you study next.</p>
+  </div></div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl" style="margin-bottom:10px">data/log.jsonl · 14 entries</div>
+      <div id="logtbl" style="max-height:280px;overflow:auto"></div>
+    </div>
+    <div>
+      <div class="stack" style="margin-bottom:14px">
+        <div class="grid2" style="gap:8px">
+          <button class="btn ghost" data-fn="recent">get_recent_errors()</button>
+          <button class="btn ghost" data-fn="summary">get_error_summary()</button>
+          <button class="btn ghost" data-fn="cards">export_anki_csv()</button>
+          <button class="btn ghost" data-fn="focus">weekly focus</button>
+        </div>
+      </div>
+      <div class="console" id="console">Pick a function. Output appears here.</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= §7 COST ================= -->
+<section id="cost"><div class="wrap">
+  <div class="shead"><span class="snum">§8</span><div>
+    <h2>What it costs to run</h2>
+    <p class="sub">Model calls scale with errors, not with sessions, because each correction triggers a tool call and another call to continue. Push the sliders until you leave the free tier. It takes some doing.</p>
+  </div></div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="slider"><label>Sessions per week <b id="v1">6</b></label><input type="range" id="s1" min="1" max="14" value="6"></div>
+      <div class="slider"><label>Errors per session <b id="v2">7</b></label><input type="range" id="s2" min="1" max="25" value="7"></div>
+      <div class="slider"><label>Weeks to exam <b id="v3">16</b></label><input type="range" id="s3" min="4" max="40" value="16"></div>
+      <div style="font-size:13px;color:var(--ink2);border-top:1px dashed var(--rule);padding-top:12px">Assumes one model call per logged error plus one to close the turn, ~1,400 tokens in and ~260 out per call.</div>
+    </div>
+    <div class="card">
+      <table><thead><tr><th>Measure</th><th style="text-align:right">Value</th></tr></thead>
+      <tbody id="costrows"></tbody></table>
+      <div class="verdict" id="verdict"></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ================= §8 TRIGGERS ================= -->
+<section id="trig"><div class="wrap">
+  <div class="shead"><span class="snum">§9</span><div>
+    <h2>What you are not building yet</h2>
+    <p class="sub">Every extension has one symptom that unlocks it. Build ahead of the symptom and you get a system too heavy to run daily. Click a symptom to see what it earns you.</p>
+  </div></div>
+  <div class="grid3" id="trigs"></div>
+</div></section>
+
+<footer><div class="wrap">
+  Companion to Implementation Spec v2 and the tutorial. Figures for token counts and pricing are illustrative and worth re-checking before you rely on them. Model behaviour is probabilistic: the loop in §2 shows three model calls, but the real count varies per turn.
+</div></footer>
+
+<script>
+(function(){
+"use strict";
+const $=(s,r)=>(r||document).querySelector(s), $$=(s,r)=>[...(r||document).querySelectorAll(s)];
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------------- HERO ---------------- */
+function playHero(){
+  const rows=$$('#demo .row'); rows.forEach(r=>r.classList.remove('on'));
+  rows.forEach((r,i)=>setTimeout(()=>r.classList.add('on'), reduce?0:420*i+220));
+}
+$('#replay').addEventListener('click',playHero); playHero();
+
+/* ---------------- §1 MAP ---------------- */
+const NODES=[
+ {f:'agent.py',r:'The tutor. Two modes: Aufgabe and Gespräch.',k:'llm',kind:'Model',
+  does:'Holds the loop, the registered tools and the model choice. It is the only file that can produce language.',
+  cost:'1 to 4 model calls per turn, decided at runtime by the model.',
+  fail:'Silently drifts when you edit the prompt without a regression check.'},
+ {f:'prompts/tutor.md',r:'The contract the model must satisfy every turn.',k:'llm',kind:'Prompt',
+  does:'Six standing obligations: reply in German, correct everything, log once per error, use the closed list, never lecture, score against 60 percent.',
+  cost:'About 620 tokens, re-sent on every single call.',
+  fail:'Prompt drift. Ten edits later you cannot tell which one helped.'},
+ {f:'tools.py',r:'Four functions. Zero model calls.',k:'fn',kind:'Function',
+  does:'log_error, get_recent_errors, get_error_summary, export_anki_csv. Two are registered as tools; two are not, because nothing about them needs judgment.',
+  cost:'0 tokens. Roughly one millisecond.',
+  fail:'Registering all four, which gives the model two more chances to choose wrongly.'},
+ {f:'review.py',r:'Weekly aggregation. Runs without you.',k:'fn',kind:'Function',
+  does:'Counts blocking errors by category, computes the week-on-week delta, names next week\'s focus, regenerates the Anki file.',
+  cost:'0 tokens at v1. Add a model only if the raw counts prove unreadable.',
+  fail:'Assuming it inherits context from your last chat. It does not. See §4.'},
+ {f:'data/log.jsonl',r:'The entire persistent state.',k:'data',kind:'State',
+  does:'Append-only JSON Lines. Human readable, diffable, repairable by hand. Everything the agent knows about you across sessions lives here and nowhere else.',
+  cost:'Bytes. About 240 per entry.',
+  fail:'One malformed line breaking the whole read. Ask Claude Code how it handles that.'}
+];
+let costMode=false, sel=0;
+function drawNodes(){
+  $('#nodes').innerHTML=NODES.map((n,i)=>`
+   <button class="node k-${n.k}" aria-pressed="${i===sel}" data-i="${i}">
+     <div><div class="nm">${n.f}</div><div class="rl">${n.r}</div></div>
+     <span class="kind">${costMode?(n.k==='fn'?'0 tokens':n.k==='data'?'0 tokens':'costs'):n.kind}</span>
+   </button>`).join('');
+  $$('#nodes .node').forEach(b=>b.addEventListener('click',()=>{sel=+b.dataset.i;drawNodes();drawDetail();}));
+}
+function drawDetail(){
+  const n=NODES[sel];
+  $('#ndetail').innerHTML=`<div class="lbl">${n.f}</div>
+    <dt>What it does</dt><dd>${n.does}</dd>
+    <dt>What it costs</dt><dd>${n.cost}</dd>
+    <dt>How it fails</dt><dd>${n.fail}</dd>`;
+}
+$('#costmode').addEventListener('click',e=>{costMode=!costMode;e.target.textContent=costMode?'Show role':'Show cost per run';drawNodes();});
+drawNodes();drawDetail();
+
+/* ---------------- §2 LOOP ---------------- */
+const STEPS=[
+ {a:'You',k:'you',t:'You submit a sentence with two errors',
+  b:'"Ich habe gestern nach Berlin gefahren, weil mein Bruder wohnt dort."',
+  w:'Two separate problems: the wrong auxiliary verb, and word order inside a weil clause.',ctx:[],calls:0,tools:0,tok:0},
+ {a:'Runtime',k:'fn',t:'Context is assembled',
+  b:'The system prompt, your last 20 logged errors, the running conversation and this message are concatenated into one payload.',
+  w:'No model involved yet. This is string handling, and it is where your token bill is decided.',
+  ctx:[['sys','system prompt','620'],['mem','last 20 log errors','340'],['usr','conversation so far','210'],['usr','your message','24']],calls:0,tools:0,tok:0},
+ {a:'Model',k:'llm',t:'Model call 1',
+  b:'The model reads the payload and does not answer you. It emits a structured request: log_error(category="verb_form").',
+  w:'The model never executes anything. It only asks. This distinction is the whole tool protocol.',
+  ctx:'keep',calls:1,tools:0,tok:1194},
+ {a:'Runtime',k:'fn',t:'log_error runs',
+  b:'Your code opens data/log.jsonl, appends one line, closes it. About one millisecond.',
+  w:'Zero tokens. This step cannot hallucinate. It can only succeed or raise.',
+  ctx:'keep',calls:0,tools:1,tok:0},
+ {a:'Runtime',k:'fn',t:'Result re-enters the context',
+  b:'The return value is appended as a new message so the model can see that the call succeeded.',
+  w:'The context is now larger than it was on call 1. Every iteration costs more than the last.',
+  ctx:[['tool','log_error → ok','18']],calls:0,tools:0,tok:0},
+ {a:'Model',k:'llm',t:'Model call 2',
+  b:'The whole payload goes again, now including the tool result. The model asks for a second log: log_error(category="word_order").',
+  w:'This is the loop. Same model, larger context, one more decision.',
+  ctx:'keep',calls:1,tools:0,tok:1212},
+ {a:'Runtime',k:'fn',t:'log_error runs again',
+  b:'Second line appended. The week\'s counts have now changed.',
+  w:'These two lines are what §6 will count and what next week\'s focus is derived from.',
+  ctx:[['tool','log_error → ok','18']],calls:0,tools:1,tok:0},
+ {a:'Model',k:'llm',t:'Model call 3',
+  b:'"Ich bin gestern nach Berlin gefahren, weil mein Bruder dort wohnt." Plus one line of English explanation, plus a follow-up question in German.',
+  w:'No tool requested this time. That absence is the termination signal.',
+  ctx:'keep',calls:1,tools:0,tok:1230},
+ {a:'Runtime',k:'fn',t:'Loop terminates',
+  b:'Text with no tool request means the controller stops and returns to you.',
+  w:'Three model calls, two file writes, one turn. The count was decided at runtime, not by you. That is why agent cost is a forecast, never a fixed price.',
+  ctx:'keep',calls:0,tools:0,tok:0}
+];
+let si=0,ctxState=[],acc={c:0,t:0,k:0},timer=null;
+function tagStyle(k){return k==='llm'?'background:var(--llm-bg);color:var(--llm)':k==='fn'?'background:var(--fn-bg);color:var(--fn)':'background:var(--paper2);color:var(--ink2)';}
+function rebuild(){
+  ctxState=[];acc={c:0,t:0,k:0};
+  for(let i=0;i<=si;i++){const s=STEPS[i];
+    if(Array.isArray(s.ctx))s.ctx.forEach(c=>ctxState.push(c));
+    acc.c+=s.calls;acc.t+=s.tools;acc.k+=s.tok;}
+}
+function render(){
+  rebuild();const s=STEPS[si];
+  $('#track').innerHTML=STEPS.map((_,i)=>`<div class="tick ${i<si?'done':i===si?'now':''}"></div>`).join('');
+  $('#stage').innerHTML=`<span class="actor" style="${tagStyle(s.k)}">${s.a}</span>
+    <h3>${s.t}</h3><div style="font-size:15.5px">${s.b}</div><div class="why">${s.w}</div>`;
+  $('#ctxlist').innerHTML=ctxState.length?ctxState.map(c=>`<div class="chip ${c[0]}"><span>${c[1]}</span><span>${c[2]} tok</span></div>`).join(''):'<div class="empty">Nothing assembled yet.</div>';
+  $('#mCalls').textContent=acc.c;$('#mTools').textContent=acc.t;$('#mTok').textContent=acc.k.toLocaleString();
+  $('#stepcount').textContent=`Step ${si+1} of ${STEPS.length}`;
+  $('#prev').disabled=si===0;$('#next').disabled=si===STEPS.length-1;
+}
+$('#next').addEventListener('click',()=>{if(si<STEPS.length-1){si++;render();}});
+$('#prev').addEventListener('click',()=>{if(si>0){si--;render();}});
+$('#reset').addEventListener('click',()=>{si=0;stopAuto();render();});
+function stopAuto(){clearInterval(timer);timer=null;$('#auto').textContent='Play';}
+$('#auto').addEventListener('click',()=>{
+  if(timer){stopAuto();return;}
+  $('#auto').textContent='Pause';
+  timer=setInterval(()=>{if(si<STEPS.length-1){si++;render();}else stopAuto();},reduce?400:1500);
+});
+render();
+
+/* ---------------- §3 CONTEXT ---------------- */
+const PARTS=[
+ {id:'sys',n:'prompts/tutor.md',d:'The six standing obligations.',tok:620,cls:'b-sys',
+  off:'Without it the model chats pleasantly in German and logs nothing. You get a language partner, not a trainer.'},
+ {id:'mem',n:'get_recent_errors(20)',d:'Your last 20 logged mistakes.',tok:340,cls:'b-mem',
+  off:'Without it every session is session one. It cannot notice that you have made this exact Dativ error four times.'},
+ {id:'usr',n:'conversation so far',d:'This session only.',tok:210,cls:'b-usr',
+  off:'Without it the model loses the thread inside a single session and repeats its own questions.'},
+ {id:'tool',n:'tool results',d:'Appended during the turn.',tok:36,cls:'b-tool',
+  off:'Without it the model cannot tell whether its own log call succeeded, so it may repeat it.'}
+];
+const on={sys:true,mem:true,usr:true,tool:true};
+function drawCtx(){
+  $('#toggles').innerHTML=PARTS.map(p=>`<label class="tog"><input type="checkbox" data-id="${p.id}" ${on[p.id]?'checked':''}>
+    <span><span class="tn">${p.n}</span> <span style="color:var(--ink3);font-family:var(--mono);font-size:11px">${p.tok} tok</span><br><span class="td">${p.d}</span></span></label>`).join('');
+  $$('#toggles input').forEach(i=>i.addEventListener('change',()=>{on[i.dataset.id]=i.checked;drawCtx();}));
+  const tot=PARTS.filter(p=>on[p.id]).reduce((a,p)=>a+p.tok,0)||1;
+  $('#cbar').innerHTML=PARTS.filter(p=>on[p.id]).map(p=>`<span class="${p.cls}" style="width:${p.tok/tot*100}%"></span>`).join('');
+  $('#ctotal').textContent=`${tot.toLocaleString()} tokens per call, re-sent every single time`;
+  const offs=PARTS.filter(p=>!on[p.id]);
+  $('#conseq').innerHTML=offs.length?offs.map(p=>`<p style="margin:0 0 12px"><b style="font-family:var(--mono);font-size:13px">${p.n} off.</b> ${p.off}</p>`).join(''):
+    '<p style="margin:0;color:var(--ink2)">Everything is in. This is your baseline: roughly 1,200 tokens before you have written a word. Switch a part off to see what the tutor stops being able to do.</p>';
+}
+drawCtx();
+
+/* ---------------- §4 STATE ---------------- */
+let inv=0;
+const CHAT=['You: Ich habe nach Berlin gefahren.','Tutor: bin, not habe. Movement takes sein.','You: Danke. Und mit dem Zug?','Tutor: Correct. Note the Dativ after mit.'];
+const LOGS=['verb_form · blocking','case · minor','word_order · blocking','prepositions · blocking'];
+function drawInv(){
+  const chat=CHAT.slice(0,Math.min(inv*2,CHAT.length));
+  $('#laneChat').innerHTML=chat.length?chat.map(l=>`<div class="memline">${l}</div>`).join('')+
+    `<div style="font-size:13px;color:var(--ink2);margin-top:10px">Turn ${inv}. Everything above is still in context. It costs tokens on every call, and it disappears the moment the process ends.</div>`
+    :'<div class="empty">Session not started.</div>';
+  $('#laneCron').innerHTML=inv===0?'<div class="empty">Not yet run.</div>':
+    `<div class="memline gone">previous run</div><div class="memline gone">the run before that</div>
+     <div class="memline" style="background:var(--fn-bg);color:var(--fn)">reads log.jsonl → ${Math.min(inv,4)} entries</div>
+     <div style="font-size:13px;color:var(--ink2);margin-top:10px">Run ${inv} began with an empty context. It knows exactly what it read off disk, and not one thing more.</div>`;
+  $('#laneLog').innerHTML=inv===0?'<div class="empty">Empty.</div>':LOGS.slice(0,Math.min(inv,4)).map(l=>`<div class="logline">${l}</div>`).join('');
+  $('#invNote').textContent=inv===0?'':`${inv} invocation${inv>1?'s':''} elapsed`;
+}
+$('#runInv').addEventListener('click',()=>{inv=Math.min(inv+1,4);drawInv();});
+$('#resetInv').addEventListener('click',()=>{inv=0;drawInv();});
+drawInv();
+
+/* ---------------- §5 TAXONOMY ---------------- */
+const TAX=[
+ {id:'case',w:'Ich helfe meinen Bruder.',r:'Ich helfe meinem Bruder.',n:'helfen governs the Dativ, not the Akkusativ.'},
+ {id:'gender',w:'Das Tisch ist neu.',r:'Der Tisch ist neu.',n:'Tisch is masculine.'},
+ {id:'adjective_endings',w:'Ich habe einen neuen Auto gekauft.',r:'Ich habe ein neues Auto gekauft.',n:'Neuter accusative after ein takes -es.'},
+ {id:'word_order',w:'Wenn ich Zeit habe, ich gehe ins Kino.',r:'Wenn ich Zeit habe, gehe ich ins Kino.',n:'After a subordinate clause the main verb comes first.'},
+ {id:'verb_form',w:'Ich habe gestern nach Berlin gefahren.',r:'Ich bin gestern nach Berlin gefahren.',n:'Verbs of movement take sein in the perfect.'},
+ {id:'connectors',w:'Obwohl es regnet, aber ich gehe spazieren.',r:'Obwohl es regnet, gehe ich spazieren.',n:'Obwohl already subordinates. Adding aber doubles the connector.'},
+ {id:'prepositions',w:'Ich freue mich für das Wochenende.',r:'Ich freue mich auf das Wochenende.',n:'sich freuen auf for something ahead, über for something past.'},
+ {id:'konjunktiv_ii',w:'Wenn ich mehr Zeit habe, würde ich mehr lesen.',r:'Wenn ich mehr Zeit hätte, würde ich mehr lesen.',n:'Unreal conditions need Konjunktiv II in both halves.'},
+ {id:'passiv',w:'Das Formular muss bis Freitag ausfüllen werden.',r:'Das Formular muss bis Freitag ausgefüllt werden.',n:'Passive uses the participle, not the infinitive.'},
+ {id:'relative_clauses',w:'Der Mann, der ich getroffen habe, ist Arzt.',r:'Der Mann, den ich getroffen habe, ist Arzt.',n:'The relative pronoun takes the case of its role in its own clause.'},
+ {id:'vocabulary',w:'Ich habe eine Frage zu fragen.',r:'Ich möchte eine Frage stellen.',n:'A question is gestellt in German, never gefragt.'},
+ {id:'register',w:'Hallo Herr Meier, kannst du mir helfen?',r:'Sehr geehrter Herr Meier, könnten Sie mir helfen?',n:'Formal message. Sie throughout, and the salutation matters. This is scored.'},
+ {id:'spelling',w:'Ich mochte einen Termin vereinbaren.',r:'Ich möchte einen Termin vereinbaren.',n:'Missing umlaut changes the word: mochte is past tense of mögen.'}
+];
+let ti=3;
+function drawTax(){
+  $('#chips').innerHTML=TAX.map((t,i)=>`<button class="cchip" aria-pressed="${i===ti}" data-i="${i}">${t.id}</button>`).join('');
+  $$('#chips .cchip').forEach(b=>b.addEventListener('click',()=>{ti=+b.dataset.i;drawTax();}));
+  const t=TAX[ti];
+  $('#exbox').innerHTML=`<div class="lbl">${t.id}</div>
+    <div class="wrong" style="margin-top:8px">${t.w}</div><div class="right">${t.r}</div>
+    <div style="font-size:14px;color:var(--ink2)">${t.n}</div>
+    <div class="jsonl" style="margin-top:14px">"category": <span class="cat">"${t.id}"</span>, "severity": "blocking"</div>`;
+}
+drawTax();
+let qi=null;
+function newQ(){
+  qi=Math.floor(Math.random()*TAX.length);
+  const right=TAX[qi], pool=TAX.filter((_,i)=>i!==qi).sort(()=>Math.random()-.5).slice(0,3);
+  const opts=[right,...pool].sort(()=>Math.random()-.5);
+  $('#qs').textContent=right.w;
+  $('#qopts').innerHTML=opts.map(o=>`<button class="opt" data-id="${o.id}">${o.id}</button>`).join('');
+  $('#qfb').textContent='';
+  $$('#qopts .opt').forEach(b=>b.addEventListener('click',()=>{
+    const ok=b.dataset.id===right.id;
+    b.classList.add(ok?'ok':'no');
+    if(!ok)$$('#qopts .opt').find(x=>x.dataset.id===right.id).classList.add('ok');
+    $('#qfb').innerHTML=`<b style="color:var(--fn)">${right.r}</b><br>${right.n}`;
+    $$('#qopts .opt').forEach(x=>x.disabled=true);
+  }));
+}
+$('#qnext').addEventListener('click',newQ); newQ();
+
+/* ---------------- §6 CORE ---------------- */
+const LOG=[
+ ['word_order','blocking','Wenn ich Zeit habe, ich gehe…'],['case','blocking','Ich helfe meinen Bruder.'],
+ ['word_order','blocking','…weil mein Bruder wohnt dort.'],['adjective_endings','minor','ein neuen Auto'],
+ ['case','blocking','mit dem Zug → mit den Zug'],['verb_form','blocking','habe gefahren'],
+ ['word_order','blocking','Deshalb ich bleibe zu Hause.'],['register','blocking','kannst du → könnten Sie'],
+ ['spelling','minor','mochte → möchte'],['case','blocking','Ich danke dich.'],
+ ['konjunktiv_ii','blocking','Wenn ich Zeit habe, würde…'],['prepositions','blocking','freue mich für'],
+ ['word_order','minor','Ich gehe morgen ins Büro früh.'],['case','blocking','Ich gebe der Mann das Buch.']
+];
+$('#logtbl').innerHTML='<table><thead><tr><th>category</th><th>sev</th><th>text</th></tr></thead><tbody>'+
+ LOG.map(l=>`<tr><td class="mono" style="font-size:12px">${l[0]}</td><td class="mono" style="font-size:11px;color:${l[1]==='blocking'?'var(--err)':'var(--ink3)'}">${l[1]}</td><td style="font-size:12.5px;color:var(--ink2)">${l[2]}</td></tr>`).join('')+'</tbody></table>';
+
+function counts(){const c={};LOG.filter(l=>l[1]==='blocking').forEach(l=>c[l[0]]=(c[l[0]]||0)+1);
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]);}
+const OUT={
+ recent:()=>`<span class="d">>>> get_recent_errors(5)</span>\n`+LOG.slice(-5).map(l=>`  {"category": "<span class="y">${l[0]}</span>", "severity": "${l[1]}"}`).join('\n')+`\n\n<span class="g">list slice · 0 model calls · 0 tokens</span>`,
+ summary:()=>`<span class="d">>>> get_error_summary(days=7)  # blocking only</span>\n`+counts().map(([k,v])=>`  ${k.padEnd(20,' ')} <span class="y">${v}</span>  ${'█'.repeat(v)}`).join('\n')+`\n\n<span class="g">arithmetic · 0 model calls · 0 tokens</span>`,
+ cards:()=>`<span class="d">>>> export_anki_csv()</span>\n  front,back\n  "Ich helfe meinen Bruder.","Ich helfe <span class="y">meinem</span> Bruder. (helfen + Dativ)"\n  "Deshalb ich bleibe zu Hause.","Deshalb <span class="y">bleibe ich</span> zu Hause."\n  … 12 more rows\n\n<span class="g">string formatting · 0 model calls · 0 tokens</span>`,
+ focus:()=>{const c=counts();return `<span class="d">>>> review.py</span>\n  Top blocking pattern: <span class="y">${c[0][0]}</span> (${c[0][1]} of ${LOG.filter(l=>l[1]==='blocking').length})\n  Second:             ${c[1][0]} (${c[1][1]})\n  Third:              ${c[2][0]} (${c[2][1]})\n\n  Next week's focus → <span class="y">${c[0][0]}</span>\n\n<span class="g">sorting · 0 model calls · 0 tokens</span>\n<span class="d">This decided your study plan. No intelligence was involved.</span>`;}
+};
+$$('[data-fn]').forEach(b=>b.addEventListener('click',()=>{$('#console').innerHTML=OUT[b.dataset.fn]();}));
+
+/* ---------------- §7 COST ---------------- */
+function cost(){
+  const s=+$('#s1').value,e=+$('#s2').value,w=+$('#s3').value;
+  $('#v1').textContent=s;$('#v2').textContent=e;$('#v3').textContent=w;
+  const callsPerSession=e+1, callsWeek=s*callsPerSession, callsTotal=callsWeek*w;
+  const inTok=callsTotal*1400, outTok=callsTotal*260;
+  const paid=(inTok/1e6*0.25)+(outTok/1e6*1.50);
+  const perDay=Math.round(callsWeek/7);
+  $('#costrows').innerHTML=[
+   ['Model calls per session',callsPerSession],
+   ['Model calls per week',callsWeek.toLocaleString()],
+   ['Model calls to exam',callsTotal.toLocaleString()],
+   ['Requests per day (avg)',perDay],
+   ['Tokens sent to exam',(inTok/1e6).toFixed(1)+'M'],
+   ['Free tier',perDay<1000?'covers it':'exceeded'],
+   ['If paid, Flash-Lite','$'+paid.toFixed(2)]
+  ].map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td></tr>`).join('');
+  const v=$('#verdict');
+  if(perDay<1000){v.className='verdict';v.innerHTML=`<b>0 EUR.</b> At ${perDay} requests a day you are inside the free tier's ~1,000 per day. Rate limits bite on bursts, not on volume: a 40-item batch in one minute will throttle where 40 spread over an hour will not.`;}
+  else{v.className='verdict warn';v.innerHTML=`<b>Free tier exceeded</b> at ${perDay} requests a day. Even so the paid figure is $${paid.toFixed(2)} for the whole run. Cost is not the constraint here. Your study time is.`;}
+}
+['s1','s2','s3'].forEach(id=>$('#'+id).addEventListener('input',cost)); cost();
+
+/* ---------------- §8 TRIGGERS ---------------- */
+const TRIGS=[
+ {s:'Your log stops fitting comfortably in the context window.',e:'Retrieval over error history',c:'RAG, chunking, grounding. You will understand why retrieval exists because you felt the wall.'},
+ {s:'You start skipping days.',e:'Scheduled daily prompt',c:'Triggers and statelessness. The agent has no memory between wakeups, so the log becomes load-bearing.'},
+ {s:'You want error trends charted over weeks.',e:'Structured correction output',c:'Schema-constrained generation and parsing. Free text cannot be plotted.'},
+ {s:'Sprechen becomes your weakest module.',e:'Voice in and out',c:'Multimodal input and latency budgets. A different set of constraints entirely.'},
+ {s:'Manual CSV import is the step you keep dropping.',e:'Anki through MCP',c:'MCP as the integration standard. Learn it once, reuse it everywhere.'},
+ {s:'One prompt is visibly juggling too many jobs.',e:'Split grammar and conversation agents',c:'Subagents and context isolation. Isolation is a correctness mechanism, not a tidiness preference.'}
+];
+$('#trigs').innerHTML=TRIGS.map((t,i)=>`<button class="trig" data-i="${i}">
+  <div class="lbl">Symptom</div><div class="sym">${t.s}</div>
+  <div class="rev"><div class="lbl">Then build</div><div class="ext">${t.e}</div><div class="con">${t.c}</div></div></button>`).join('');
+$$('.trig').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('open')));
+})();
+</script>
+
+<script>
+(function(){
+"use strict";
+var $=function(a,b){return (b||document).querySelector(a)};
+var $$=function(a,b){return Array.prototype.slice.call((b||document).querySelectorAll(a))};
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var TR={
+ auf:{title:'Aufgabe mode &middot; one full text, submitted once',msgs:[
+  {w:'sys',c:'You',t:'python agent.py',n:'You start it. At v1 there is no daemon and no notification. The habit is yours to keep.'},
+  {w:'agent',c:'Agent',t:'Modus? [1] Aufgabe &nbsp; [2] Gespr&auml;ch',n:''},
+  {w:'you',c:'You',t:'1',n:''},
+  {w:'sys',c:'Runtime',t:'get_recent_errors(20) &rarr; register 4&times;, connectors 3&times;, case 3&times;',n:'It reads the log before choosing anything. This is what makes the next step non-random.'},
+  {w:'agent',c:'Agent',t:'Aufgabe 3, formale Nachricht. Sie haben am Donnerstag um 15 Uhr einen Termin in der Praxis Dr. Weber. Sie k&ouml;nnen nicht kommen. Schreiben Sie eine kurze Nachricht: sagen Sie den Termin ab, nennen Sie einen Grund und bitten Sie um einen neuen Termin. Circa 40 W&ouml;rter. Sie haben 10 Minuten.',n:'This is the answer to your question. The task is the prompt. It chose Aufgabe 3 because register is your top blocking pattern, and Aufgabe 3 is the formal one.'},
+  {w:'you',c:'You',t:'Sehr geehrte Damen und Herren, leider kann ich meinen Termin am Donnerstag nicht kommen, weil ich muss arbeiten. K&ouml;nnten Sie mir bitte einen neuen Termin geben? Vielen Dank f&uuml;r Ihr Verst&auml;ndnis.',n:'You write the whole thing and send it once, under the timer. Not sentence by sentence. That is the exam condition.'},
+  {w:'agent',c:'Agent',t:'2 Fehler. &bdquo;meinen Termin nicht wahrnehmen&ldquo; statt &bdquo;nicht kommen&ldquo;. Und: &bdquo;&hellip; weil ich arbeiten muss.&ldquo; Bewertung: Inhalt 3/3, Aufbau 3/3, Wortschatz 2/3, Grammatik 2/3. Bestanden.',n:'Two log_error calls fire here. Scoring is against the four Goethe criteria and the 60 percent line.'},
+  {w:'sys',c:'Runtime',t:'log.jsonl +2 lines &nbsp;&middot;&nbsp; vocabulary, word_order',n:'Session ends. The two lines outlive it, and they will steer Wednesday.'}
+ ]},
+ ges:{title:'Gespr&auml;ch mode &middot; turn by turn, targeted',msgs:[
+  {w:'sys',c:'You',t:'python agent.py',n:''},
+  {w:'you',c:'You',t:'2',n:''},
+  {w:'sys',c:'Runtime',t:'get_recent_errors(20) &rarr; konjunktiv_ii 3&times;, word_order 5&times;',n:'Same read, different use: it now picks a conversation topic rather than a task.'},
+  {w:'agent',c:'Agent',t:'Guten Abend. Heute &uuml;ben wir Konjunktiv II. Stellen Sie sich vor: Sie bekommen einen Monat frei. Was w&uuml;rden Sie machen, und warum?',n:'This is what prompts your sentence. The question is engineered so you cannot answer it correctly without a Konjunktiv II and a weil clause, which are exactly the two things you keep failing.'},
+  {w:'you',c:'You',t:'Wenn ich einen Monat frei habe, ich w&uuml;rde nach Japan reisen, weil ich mag die Kultur.',n:'One to three sentences. Short turns keep the correction density high.'},
+  {w:'agent',c:'Agent',t:'Wenn ich einen Monat frei h&auml;tte, w&uuml;rde ich nach Japan reisen, weil ich die Kultur mag. Drei Punkte: h&auml;tte im Konjunktiv, Verb vor Subjekt im Hauptsatz, Verb ans Ende nach weil.',n:'Three log_error calls: konjunktiv_ii, word_order, word_order. Correction first, one line of explanation, no lecture.'},
+  {w:'agent',c:'Agent',t:'Und wenn Sie nur eine Woche Zeit h&auml;tten, wohin w&uuml;rden Sie dann fahren?',n:'The follow-up forces the same structure again immediately. That repetition inside one session is the drill mechanism.'},
+  {w:'sys',c:'Runtime',t:'&hellip; roughly ten exchanges, then a one-line summary',n:'Around 30 model calls and 12 log lines for a 15 minute session. Still inside the free tier.'}
+ ]}
+};
+var mode='auf', idx=0;
+function draw(){
+  var d=TR[mode];
+  $('#trTitle').innerHTML=d.title;
+  $('#transcript').innerHTML=d.msgs.slice(0,idx+1).map(function(m){
+    return '<div class="msg on"><span class="who w-'+m.w+'">'+m.c+'</span><div class="bd"><div class="de2">'+m.t+'</div>'+(m.n?'<div class="nt">'+m.n+'</div>':'')+'</div></div>';
+  }).join('');
+  $('#trCount').textContent=(idx+1)+' of '+d.msgs.length;
+  $('#trNext').disabled=idx>=d.msgs.length-1;
+}
+$$('[data-mode]').forEach(function(b){b.addEventListener('click',function(){
+  mode=b.dataset.mode; idx=0;
+  $$('[data-mode]').forEach(function(x){x.className='btn ghost'});
+  b.className='btn'; draw();
+});});
+$('#trNext').addEventListener('click',function(){var d=TR[mode];if(idx<d.msgs.length-1){idx++;draw();}});
+$('#trReset').addEventListener('click',function(){idx=0;draw();});
+draw();
+
+var EL=[
+ ['konjunktiv_ii','Was w&uuml;rden Sie machen, wenn Sie ein Jahr frei h&auml;tten?','Unreal condition. Cannot be answered without h&auml;tte plus w&uuml;rde.'],
+ ['word_order','Warum lernen Sie Deutsch? Antworten Sie bitte mit &bdquo;weil&ldquo;.','Names the connector, which forces the verb to the end.'],
+ ['case','Wem haben Sie letzte Woche geholfen?','helfen governs the Dativ. The question makes the case unavoidable.'],
+ ['adjective_endings','Beschreiben Sie Ihr B&uuml;ro. Was f&uuml;r M&ouml;bel stehen dort?','Description tasks force attributive adjectives, which is where endings live.'],
+ ['relative_clauses','Was ist eine Betriebsversammlung? Erkl&auml;ren Sie es in einem Satz.','A one-sentence definition is hard to give without a relative clause.'],
+ ['passiv','Wie werden bei Ihnen neue Projekte entschieden?','Process questions pull the passive out naturally.'],
+ ['prepositions','Worauf freuen Sie sich diesen Monat?','Fixed verb plus preposition. sich freuen auf, not f&uuml;r.'],
+ ['connectors','Sollten drei Tage Homeoffice normal sein? Nennen Sie zwei Gr&uuml;nde.','Opinion plus justification forces deshalb, trotzdem, obwohl.'],
+ ['verb_form','Was haben Sie am Wochenende gemacht?','Perfect tense, and it exposes sein versus haben immediately.'],
+ ['register','switches to Aufgabe 3, the formal message','Register is not drilled in conversation. It is drilled by changing the task type.']
+];
+var ei=0;
+function drawEl(){
+  $('#elchips').innerHTML=EL.map(function(e,i){return '<button class="cchip" aria-pressed="'+(i===ei)+'" data-i="'+i+'">'+e[0]+'</button>';}).join('');
+  $$('#elchips .cchip').forEach(function(b){b.addEventListener('click',function(){ei=+b.dataset.i;drawEl();});});
+  $('#elbox').innerHTML='<div class="lbl">It asks</div><div style="font-size:16px;margin:8px 0 10px">'+EL[ei][1]+'</div><div style="font-size:13.5px;color:var(--ink2)">'+EL[ei][2]+'</div>';
+}
+drawEl();
+})();
+</script>
+</body>
+</html>
