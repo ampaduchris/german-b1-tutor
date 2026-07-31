@@ -19,3 +19,18 @@ dependencies = [
 # This is an application, not a library. Nothing here is meant to be built as
 # a wheel or imported by another project, so uv needs no build backend.
 package = false
+
+[dependency-groups]
+# Test-only. Deliberately a dev group rather than a project dependency, so the
+# spec's "external dependency count: 2" stays literally true of what the agent
+# needs to run: `uv tree --depth 1` still prints exactly two children.
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+# tools.py sits at the repository root, and tests/ has no __init__.py, so
+# without this pytest would put tests/ on sys.path and `import tools` would
+# fail. Paths only; no behavioural configuration.
+pythonpath = ["."]
+testpaths = ["tests"]
