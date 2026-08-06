@@ -617,7 +617,9 @@ CONFIRMATION GATE. Before starting, output exactly six lines:
   - the seven failure modes from spec section 9
   - the five planted errors in spec section 11 and their expected
     categories
-  - the three claims in spec section 12 rated M rather than H
+  - the claims in spec section 12 rated M rather than H (there are four,
+    not three: Flash sufficiency, log-driven elicitation, two thirds
+    deterministic, manual initiation)
   - every [AMBIGUOUS] decision earlier sessions recorded
   - every check earlier sessions marked NOT VERIFIED
 
@@ -628,7 +630,7 @@ tutor and checks the categories logged:
 
   1. "Ich helfe meinen Bruder."                        expect case
   2. "Wenn ich Zeit habe, würde ich mehr lesen."       expect konjunktiv_ii
-  3. "Ich habe einen neuen Auto gekauft."              expect adjective_endings
+  3. "Ich habe ein neuen Auto gekauft."                 expect adjective_endings
   4. "Wenn ich Zeit habe, ich gehe ins Kino."          expect word_order
   5. "Sehr geehrter Herr Meier, kannst du mir helfen?" expect register
 

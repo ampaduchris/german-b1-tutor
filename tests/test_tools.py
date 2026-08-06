@@ -39,7 +39,10 @@ formatter.
 import csv
 import json
 import logging
+import subprocess
+import sys
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -78,6 +81,8 @@ SPEC_CATEGORIES = (
     "register",
     "spelling",
 )
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Every field of the data contract in spec-v3.md section 3, in order.
 CONTRACT_FIELDS = (
@@ -215,6 +220,71 @@ def test_rejection_message_lists_the_valid_options(write_entry):
     message = str(excinfo.value)
     for category in SPEC_CATEGORIES:
         assert category in message
+
+
+# --------------------------------------------------------------------------
+# mode and task_type: closed in session 5, after two sessions of being open
+#
+# Session 2 left these unvalidated and said so; session 3 chose the strings and
+# could only enforce them in the prompt and the runtime, recording that this
+# was "weaker than the category closure". `category` raised and `mode` did not,
+# and once the vocabulary was settled that asymmetry had no defence.
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("mode", ["aufgabe", "gespraech"])
+def test_both_modes_are_accepted(write_entry, mode):
+    assert write_entry(mode=mode)["mode"] == mode
+
+
+@pytest.mark.parametrize(
+    "bad", ["conversation", "task", "Gespräch", "Aufgabe", "GESPRAECH", "", None, 2]
+)
+def test_every_other_mode_spelling_is_rejected(write_entry, temp_log, bad):
+    """The four spellings for two modes the build log found across the
+    documents are exactly what this closes."""
+    with pytest.raises(ValueError) as excinfo:
+        write_entry(mode=bad)
+    assert "mode" in str(excinfo.value)
+    assert not temp_log.exists()
+
+
+@pytest.mark.parametrize(
+    "task_type", ["informal_email", "forum_post", "formal_message"]
+)
+def test_the_three_task_types_are_accepted(write_entry, task_type):
+    written = write_entry(mode="aufgabe", task_type=task_type)
+    assert written["task_type"] == task_type
+
+
+def test_task_type_may_be_omitted(write_entry):
+    """Gespräch writes null, and Aufgabe is NOT forced to supply one.
+
+    Nothing downstream reads this field, so refusing the write would trade a
+    whole correction for a purely descriptive label.
+    """
+    assert write_entry(mode="gespraech", task_type=None)["task_type"] is None
+    assert write_entry(mode="aufgabe", task_type=None)["task_type"] is None
+
+
+@pytest.mark.parametrize("bad", ["email", "Formal_Message", "aufgabe_3", 1])
+def test_an_invented_task_type_is_rejected(write_entry, temp_log, bad):
+    with pytest.raises(ValueError) as excinfo:
+        write_entry(mode="aufgabe", task_type=bad)
+    assert "task_type" in str(excinfo.value)
+    assert not temp_log.exists()
+
+
+def test_reading_does_not_validate_mode(sample_log):
+    """The committed fixture still holds the historical "conversation" spelling.
+
+    Validation is at write time only, by design: closing a set must never make
+    an existing log unreadable, or one decision would cost the whole history.
+    """
+    entries, malformed = tools._read_log()
+    assert malformed == 0
+    assert {e["mode"] for e in entries} == {"conversation", "task"}
+    assert tools.get_focus() == "word_order"
 
 
 # --------------------------------------------------------------------------
@@ -647,3 +717,47 @@ def test_fixture_decoy_holds_spelling_is_the_most_common_overall(sample_log):
     assert counts["spelling"] == 4
     assert counts["word_order"] == 3
     assert max(counts.values()) == counts["spelling"]
+
+
+# --------------------------------------------------------------------------
+# Concurrency: the atomicity claim, demonstrated rather than argued
+#
+# Session 2 wrote: "What was NOT demonstrated is a process killed mid-write or
+# two processes writing at once." The second half is demonstrable cheaply, and
+# it is the half that matters here: log_error serialises the whole line first
+# and hands it to one write() on a handle opened "a", so O_APPEND should make
+# concurrent appends indivisible rather than interleaved.
+# --------------------------------------------------------------------------
+
+
+def test_two_processes_appending_concurrently_produce_no_torn_lines(tmp_path):
+    log = tmp_path / "data" / "log.jsonl"
+    writer = tmp_path / "writer.py"
+    writer.write_text(
+        "import sys\n"
+        f"sys.path.insert(0, {str(PROJECT_ROOT)!r})\n"
+        "import tools\n"
+        "from pathlib import Path\n"
+        f"tools.LOG_PATH = Path({str(log)!r})\n"
+        "tag = sys.argv[1]\n"
+        # Few iterations, big records. log_error fsyncs every write, so the
+        # count is what costs seconds while the record SIZE is what makes a
+        # torn line possible in the first place. 600+ byte lines, 20 each.
+        "for i in range(20):\n"
+        "    tools.log_error('x' * 200, 'y' * 200, 'case', f'{tag}_{i}',\n"
+        "                    'z' * 200, 'blocking', 'gespraech')\n",
+        encoding="utf-8",
+    )
+    procs = [
+        subprocess.Popen([sys.executable, str(writer), tag])
+        for tag in ("alpha", "beta")
+    ]
+    for proc in procs:
+        assert proc.wait(timeout=120) == 0
+
+    entries, malformed = tools._read_log(log)
+    assert malformed == 0, "a line was torn by concurrent appends"
+    assert len(entries) == 40
+    details = {entry["detail"] for entry in entries}
+    assert len(details) == 40, "an append overwrote another"
+    assert all(len(entry["learner_text"]) == 200 for entry in entries)

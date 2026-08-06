@@ -67,6 +67,34 @@ CATEGORIES = (
 # stylistic wobble. Only blocking drives elicitation and the weekly focus."
 SEVERITIES = ("blocking", "minor")
 
+# The two session shapes of spec-v3.md section 5.2, as they are spelled in the
+# log. Closed here from session 5 onwards.
+#
+# History, because the delay was deliberate rather than an oversight. Session 2
+# left this field open and said so, because the vocabulary had not been chosen
+# and inventing one would have been a data-contract change made on the wrong
+# authority. Session 3 chose `aufgabe` and `gespraech` and enforced them in the
+# prompt and the runtime only, recording that this was "weaker than the
+# category closure and should be read as such: a model that invents
+# mode='task' will have it written without complaint". It is now closed here,
+# where it cannot be talked out of. `category` raised and `mode` did not, and
+# once the vocabulary was settled that asymmetry had no defence.
+#
+# agent.py mints these same two strings for its mode prompt and validates the
+# two sets against each other at launch, so a divergence fails in the first
+# second rather than at the first correction.
+MODES = ("aufgabe", "gespraech")
+
+# spec-v3.md section 5.2's three Goethe Schreiben task types. Only meaningful
+# in Aufgabe; None in Gespräch.
+#
+# Membership is enforced, but a missing task_type is NOT rejected even in
+# Aufgabe. Nothing downstream reads this field — not get_focus, not
+# get_error_summary, not review.py — so refusing the write would trade a whole
+# correction for a purely descriptive label. The line is worth more than the
+# field.
+TASK_TYPES = ("informal_email", "forum_post", "formal_message")
+
 # spec-v3.md section 4: get_focus works over "the last 20".
 FOCUS_WINDOW = 20
 
@@ -194,10 +222,12 @@ def log_error(
 ) -> dict:
     """Append exactly one error to the log. Registered as a tool.
 
-    Validates `category` and `severity` against the closed sets and raises
-    ValueError on anything else. Nothing is coerced and nothing is
-    nearest-matched: an invalid value is rejected, so the caller has to fix it
-    rather than have a wrong label silently recorded.
+    Validates `category`, `severity`, `mode` and `task_type` against the closed
+    sets and raises ValueError on anything else. Nothing is coerced and nothing
+    is nearest-matched: an invalid value is rejected, so the caller has to fix
+    it rather than have a wrong label silently recorded. `task_type` may also
+    be None, which is what Gespräch writes; see TASK_TYPES for why a missing
+    one is not rejected in Aufgabe.
 
     `id` and `date` are generated here rather than accepted as arguments. The
     caller has no business deciding when an event happened, and in session 3
@@ -211,6 +241,9 @@ def log_error(
     """
     _validate_choice(category, CATEGORIES, "category")
     _validate_choice(severity, SEVERITIES, "severity")
+    _validate_choice(mode, MODES, "mode")
+    if task_type is not None:
+        _validate_choice(task_type, TASK_TYPES, "task_type")
 
     now = datetime.now()
     entry = {

@@ -1010,3 +1010,238 @@ name rather than inferred from a category miss.
 - **`data/log.jsonl` is STILL 0 bytes.** Five sessions, one addendum, and the
   system has never once been used for its purpose. Acceptance criteria 1, 3 and
   4 remain blocked on the same missing thing.
+
+---
+
+## Session 5, second addendum: the missed items closed, and a green baseline
+Date: 2026-08-06
+
+Recorded as a separate entry per rule 1. The human asked for everything still
+missing to be fixed, with the goal of the system being usable. This entry is
+the result. **Both stop conditions from the Session 5 entry have cleared, and
+the reason is evidence rather than argument: a full run of the harness against
+the pinned model passed everything.** Read the verification results before the
+decisions; they change what several earlier entries concluded.
+
+### Built
+
+- `tests/test_agent_cli.py` — 22 tests. The runtime contract with `agent.turn`
+  stubbed: mode question, both silence layers, the clock, tool-error recovery.
+- `tests/test_regression_harness.py` — 31 tests. The harness's own calibration:
+  the grader's truth table, the sandbox, the instrumentation, the quota
+  short-circuit, and a fake model driving a whole run.
+- `tests/test_review.py` — 22 tests. Session 4's largest flagged omission,
+  including the ordering guard it said was "currently a manual check".
+- `scripts/regression.py` — an Aufgabe phase. Was Gespräch-only.
+- `agent.py` — `timed_input()` and `opener()`; the clock now enforces.
+- `tools.py` — `MODES` and `TASK_TYPES` closed and validated.
+- `prompts/tutor.md`, `README.md`, `docs/spec-v3.md`, `docs/tutorial.md`,
+  `docs/explainer.html`, `docs/build-sessions.md` — corrections, below.
+- Test count: **73 → 168**, all passing, ~23 s, zero model calls.
+
+### Decisions taken
+
+- **The Aufgabe timer now enforces.** `input()` blocks forever, so a learner who
+  typed nothing was never timed out and spec section 8 criterion 2's "times it"
+  was advisory — the defect the session 3 addendum found and could not fix
+  inside its line budget. `timed_input()` gives the read a deadline via
+  `select`, falling back to a blocking read where select cannot watch stdin.
+  Applied to Gespräch too, so both session shapes keep the limit they announce.
+- **`agent.py` grew from 149 to 207 lines, deliberately.** Session 3's prompt
+  imposed a 150-line budget; that was a constraint of that session, not a
+  property of the system, and holding it would have meant shipping a timer that
+  does not time. Recorded rather than quietly ignored.
+- **The duration now travels in the control message**, `SESSION_START
+  mode=aufgabe minutes=20`. The session 3 addendum recorded that `MINUTES` in
+  `agent.py` and the prose in `tutor.md` were two sources of truth for one fact,
+  so editing one made the agent announce a limit it did not keep. That mattered
+  little while the timer was advisory and matters a great deal now that it cuts
+  the session off. `agent.py` owns the number; `tutor.md` is told to state it.
+- **`mode` and `task_type` are closed in `tools.py`.** Session 2 left them open
+  and said so; session 3 chose the strings and could only enforce them in the
+  prompt, recording the result as "weaker than the `category` closure". Once the
+  vocabulary was settled, `category` raising while `mode` did not had no
+  defence. `agent.MODES` and `agent.MINUTES` are now derived from `tools.MODES`
+  rather than restating the strings, so the value announced and the value
+  validated cannot drift. **Reading still does not validate** — the committed
+  fixture keeps its historical `conversation`/`task` spellings and is read
+  without complaint, because closing a set must never make an existing log
+  unreadable.
+- **A missing `task_type` is accepted even in Aufgabe.** Membership is enforced;
+  presence is not. Nothing downstream reads the field, so refusing the write
+  would trade a whole correction for a descriptive label.
+- **Regression sentence 3 was changed, and the live run vindicated it.** See the
+  first addendum for the reasoning. The prediction was that
+  `Ich habe einen neuen Auto gekauft.` was miscategorised because it entangles
+  an article error with an adjective error, not because Flash cannot recognise
+  an adjective ending. With the article corrected, the pinned model answered
+  `adjective_endings` first time. **The sentence was the defect.**
+- **[AMBIGUOUS] The `id` field was NOT changed to microsecond resolution.**
+  Tempting, because the log is still empty and this is the last moment it is
+  free. Refused: session 2 item 9 was ratified by the human with an explicit
+  trigger — "anything that wants to dedupe or cross-reference entries" — and no
+  such trigger has fired. Changing a ratified decision without its trigger is
+  the discipline this project is built on, and the harness already attributes
+  log lines by position rather than by `id` precisely because `id` is a
+  timestamp.
+- **`data/review-*.md` pruning, a rotation scheme for the regression filename,
+  and any `tutor.md` behaviour tuning were all refused.** No symptom for the
+  first two; the third now has an instrument, and the right order is baseline
+  first, edit second.
+- **A defect in this session's own new test, fixed and declared.** The fake
+  model in `test_regression_harness.py` did not consult `agent.gate`, so the
+  silence test passed trivially — a fake model that never asks the gate can
+  never be blocked by it. It now runs the callback exactly as ADK's flow does.
+
+### Documentation corrected
+
+Sessions were barred from editing `docs/spec-v3.md`; that bar was lifted here.
+
+- **`spec-v3.md` section 3's own example wrote `"mode": "task"`** — a value
+  `log_error` now rejects. Corrected to `aufgabe`, and section 3 now states that
+  **four** fields are closed, not one, with the history of why two of them took
+  three sessions to close.
+- **`spec-v3.md` section 1** now carries the measured free-tier ceiling: 20
+  requests per day, 5 per minute, two calls per turn. "0 EUR" was right about
+  price and was being read as right about sufficiency.
+- **`spec-v3.md` section 2** said "Five files" and listed six, and said
+  `agent.py` is "the only file that calls a model" while three do. Now: five
+  system files plus one generated artefact, and the rule is that no *runtime*
+  file except `agent.py` calls a model, with test scaffolding named explicitly.
+- **`spec-v3.md` section 4** now admits `get_focus` returning `None` and
+  documents `get_error_summary`'s tie ordering, which two files depend on.
+- **`spec-v3.md` section 11** now says each planted sentence must carry exactly
+  one error, with the `gender`/`adjective_endings` case written out as the
+  worked example of why.
+- **`tutorial.md` section 2 named the wrong registered tool set** — four
+  functions, omitting `get_focus`. Session 2 flagged this and it was still
+  wrong. A reader learning the tool list from it would register the wrong set.
+  Also relabelled as the companion to spec **v3**, not v2.
+- **`explainer.html` repeated the same wrong tool list**, and its cost
+  calculator told the reader they were "inside the free tier's ~1,000 per day".
+  The measured cap is 20. That was the single most misleading sentence in the
+  repository, on the one number that decides what you can do in a day.
+- **`README.md` said "Only `docs/`. The project tree itself is created by build
+  Session 1."** It was the first thing a cold reader saw and it described a
+  repository that stopped existing five sessions ago. Rewritten as a usage
+  document: how to run each entry point, what the free tier allows, and the
+  measure-before-and-after loop for editing the prompt.
+- **`build-sessions.md`** said "the three claims in spec section 12 rated M".
+  There are four.
+
+### Verification results
+
+**The headline: `uv run scripts/regression.py --runs 1` against
+`gemini-3.6-flash`, 17 model calls, exit 0, ALL PASSED. Baseline saved at
+`data/regression-2026-08-06.json`.** Diff against that file after any prompt
+edit.
+
+| Check | Result |
+|---|---|
+| Sentence 1 `case` | **exact** |
+| Sentence 2 `konjunktiv_ii` | **exact** |
+| Sentence 3 `adjective_endings` | **exact** — was `gender` twice on the old sentence |
+| Sentence 4 `word_order` | **exact** |
+| Sentence 5 `register` | **exact** |
+| Obligation 8, `get_focus` before first output | **PASS**, observed on the wire: opening tool calls `['get_focus', 'get_recent_errors']` |
+| Obligation 4, `get_recent_errors` at session start | **PASS** — closes a session 3 NOT VERIFIED |
+| Obligation 2, Gespräch | **PASS** 5/5, `log_error` called every turn |
+| Obligation 9 indicator | **5 consecutive on target**, minimum 3 |
+| Obligation 10, task states the 20-minute limit | **PASS** — and it is now the limit actually enforced |
+| Obligation 10, task states a word count | **PASS** |
+| Obligation 10, silence | **PASS**, 0 model calls while drafting; gate replied `[Aufgabe laeuft. Keine Rueckmeldung vor der Abgabe.]` to a direct prompt injection |
+| Aufgabe submission categories | **exact**, `['register', 'word_order']` |
+| Obligation 2, Aufgabe | **PASS**, 2 log lines — **the V4.3 failure did not reproduce** |
+| Obligation 6, score out of 100 | **PASS**, `35 / 100` |
+| `mode` / `task_type` written | `['aufgabe']` / `['formal_message']` — the closed sets, end to end on the live model |
+| `data/log.jsonl` | `e3b0c442…` before and after. Untouched |
+
+**The most important single row is obligation 2 in Aufgabe.** The Session 5
+entry named session 3's V4.3 as the outstanding item that worried me most: the
+scoring turn narrating `log_error` in prose and writing zero lines, silently,
+in the mode where `register` is the only drillable category. On the pinned
+model it wrote two correct lines. That failure was a weaker-substitute
+artifact, as session 3 suspected but could not show.
+
+Other checks:
+
+- **168 tests pass**, zero model calls, ~23 s. Was 73.
+- **Concurrent appends produce no torn lines.** Two processes, 20 records each
+  of 600+ bytes: 40 entries, 0 malformed, 40 distinct details. Closes session
+  2's "the atomicity claim is argued, not crash-tested" for the concurrency
+  half. The kill-mid-write half remains untested and probably always will be.
+- **The ordering guard is no longer manual.** `_ranked` is asserted equal to
+  `get_error_summary` in content *and* order, on a window built for the purpose.
+  Session 4 said "if `get_error_summary`'s ordering changes, V2.2 is the check
+  that catches it and nothing else will".
+- **`review.py` runs clean from a foreign working directory** with a stripped
+  environment, as a subprocess, exit 0.
+- **A fresh clone with no `data/` directory at all**: `review.py` exits 0,
+  creates `data/` for its report, and does not create `cards.csv`.
+- **Criterion 6 re-verified** after the CLI changes: mode prompt, then
+  `Kein Modus gewaehlt.`, exit 1, zero model calls, log checksum unchanged.
+
+### Acceptance audit, re-run
+
+| # | Criterion | Was | Now | Evidence |
+|---|---|---|---|---|
+| 1 | Correctly categorised lines, no manual editing | **FAIL** | **PASS** | 5/5 Gespräch and 2/2 Aufgabe exact on the pinned model, valid `severity`, `mode`, `task_type`, no editing. `data/log.jsonl` is still 0 bytes only because the harness sandboxes on purpose |
+| 2 | Aufgabe issues a task, times it, returns a plausible score | **FAIL** | **PASS** | Task issued on the pinned model stating the 20-minute limit and a word count; the clock now enforces (`timed_input`, 5 tests); `35 / 100` against the 60 % line. The word "plausible" is Chris's judgment and is the only part no test can close |
+| 3 | `review.py` changes next week's plan | NOT VERIFIED | **NOT VERIFIED** | Needs real study data. The log is empty |
+| 4 | `cards.csv` imports into Anki | NOT VERIFIED | **NOT VERIFIED** | No Anki on this machine |
+| 5 | You can explain why `get_error_summary` is not an agent | N/A | **NOT APPLICABLE** | Tests the human, not the code |
+| 6 | Mode prompt, not a blank cursor | PASS | **PASS** | Re-verified after the CLI rewrite |
+| 7 | Five planted `konjunktiv_ii` → a hypothetical opening | PASS | **PASS** | Arithmetic re-verified; behavioural 3/3 in session 3 |
+| 8 | Aufgabe silence | PASS | **PASS** | Now also inside a live run: 0 model calls while drafting, injection refused |
+| 9 | Follow-ups hold the target ≥3 turns | **FAIL** | **PASS** | 5 consecutive on target on the current prompt. Session 3's single violation was on the previous prompt; the indicator now exists to catch a recurrence |
+
+**Five PASS, two NOT VERIFIED, one NOT APPLICABLE, zero FAIL.** The
+three-or-more-failures stop condition no longer holds.
+
+### Failure-mode audit, re-run
+
+| # | Mode | Was | Now |
+|---|---|---|---|
+| 1 | Generic small talk opening | neither | **DETECTED, exactly.** `get_focus` is watched being called before the first output, and the run records which elicitation row the focus selected. Still not *prevented* — obligation 8 remains prose |
+| 2 | Corrects a half-finished Aufgabe | prevented | **PREVENTED**, unchanged, now also proven inside a live run |
+| 3 | Same category for weeks | not prevented, weakly detected | unchanged |
+| 4 | Drift off target after turn two | neither | **DETECTED**, by the obligation-9 indicator, reported per turn with the overlapping words shown |
+| 5 | Invented category labels | prevented + detected | **PREVENTED for four fields now**, not one |
+| 6 | Malformed line | prevented + detected | unchanged, now pinned by tests rather than hand-checked |
+| 7 | You stop opening it | neither | unchanged, deliberately (spec section 10) |
+
+Only failure mode 7 is still neither prevented nor detected, and it is a
+deliberate deferral whose trigger symptom is the thing itself.
+
+### Over-built / under-built, revised
+
+**Over-built** — unchanged from the Session 5 entry: `review.py`'s 570 lines
+for a path a 0-byte log has never reached, the persisted `review-*.md`, and the
+harness's `extra`/`strict` split for multi-error sentences that still do not
+exist. Added: the Aufgabe phase costs 5 of the 20 daily calls, which is a real
+price for a check that has now passed once.
+
+**Under-built** — most of the list is gone. What remains: nothing measures
+whether a `blocking` severity is still deserved after the learner has fixed the
+structure (failure mode 3); there is no word counter, so the model still judges
+length by eye; and nothing detects a lapse in use (failure mode 7).
+
+### For the next session
+
+- **The system is usable. Run it.** `uv run agent.py`, mode 2. The only thing
+  now standing between this project and its purpose is a session.
+- **Today's budget is spent: 17 of 20 calls went on the baseline run.** A full
+  regression run and a study session do not both fit in one day. Check on one
+  day, study on the others.
+- **`data/regression-2026-08-06.json` is the green baseline.** Copy it aside
+  before re-running — a second run on the same date overwrites it. Diff against
+  it after any `tutor.md` edit; that is the whole point of it existing.
+- **`prompts/tutor.md` changed this session**, so the baseline is against the
+  new prompt. Anything measured against the 2026-08-05 files is not comparable.
+- **`data/log.jsonl` is still 0 bytes.** Acceptance criteria 3 and 4 are blocked
+  on it and on nothing else.
+- **`agent.py` is 207 lines**, the session 3 budget is gone, and the CLI is
+  still the bulk of it.
+- The kill-mid-write half of the atomicity claim, the Anki import, and Chris's
+  judgment of score plausibility are the only things left that no test here can
+  reach.

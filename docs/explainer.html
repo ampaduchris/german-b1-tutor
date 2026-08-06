@@ -502,7 +502,7 @@ const NODES=[
   cost:'About 620 tokens, re-sent on every single call.',
   fail:'Prompt drift. Ten edits later you cannot tell which one helped.'},
  {f:'tools.py',r:'Four functions. Zero model calls.',k:'fn',kind:'Function',
-  does:'log_error, get_recent_errors, get_error_summary, export_anki_csv. Two are registered as tools; two are not, because nothing about them needs judgment.',
+  does:'log_error, get_recent_errors, get_focus, get_error_summary, export_anki_csv. Three are registered as tools; two are not, because nothing about them needs judgment.',
   cost:'0 tokens. Roughly one millisecond.',
   fail:'Registering all four, which gives the model two more chances to choose wrongly.'},
  {f:'review.py',r:'Weekly aggregation. Runs without you.',k:'fn',kind:'Function',
@@ -727,12 +727,12 @@ function cost(){
    ['Model calls to exam',callsTotal.toLocaleString()],
    ['Requests per day (avg)',perDay],
    ['Tokens sent to exam',(inTok/1e6).toFixed(1)+'M'],
-   ['Free tier',perDay<1000?'covers it':'exceeded'],
+   ['Free tier (20/day)',perDay<20?'covers it':'EXCEEDED'],
    ['If paid, Flash-Lite','$'+paid.toFixed(2)]
   ].map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td></tr>`).join('');
   const v=$('#verdict');
-  if(perDay<1000){v.className='verdict';v.innerHTML=`<b>0 EUR.</b> At ${perDay} requests a day you are inside the free tier's ~1,000 per day. Rate limits bite on bursts, not on volume: a 40-item batch in one minute will throttle where 40 spread over an hour will not.`;}
-  else{v.className='verdict warn';v.innerHTML=`<b>Free tier exceeded</b> at ${perDay} requests a day. Even so the paid figure is $${paid.toFixed(2)} for the whole run. Cost is not the constraint here. Your study time is.`;}
+  if(perDay<20){v.className='verdict';v.innerHTML=`<b>0 EUR.</b> At ${perDay} requests a day you are inside the free tier. Measured ceiling on gemini-3.6-flash, confirmed by the API's own 429 body: <b>20 requests per day and 5 per minute</b>. One conversational turn costs two model calls.`;}
+  else{v.className='verdict warn';v.innerHTML=`<b>Free tier exceeded</b> at ${perDay} requests a day against a measured cap of <b>20 per day</b>. The paid figure is $${paid.toFixed(2)} for the whole run, so money is not the constraint — the free-tier ceiling is. This is the number that decides whether you can run a session and the regression check on the same day. You cannot.`;}
 }
 ['s1','s2','s3'].forEach(id=>$('#'+id).addEventListener('input',cost)); cost();
 

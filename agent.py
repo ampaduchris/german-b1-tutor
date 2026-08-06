@@ -8,6 +8,7 @@ Run: uv run agent.py
 import asyncio
 import logging
 import os
+import select
 import sys
 import time
 from pathlib import Path
@@ -18,6 +19,7 @@ from google.adk.models.llm_response import LlmResponse
 from google.adk.runners import InMemoryRunner
 from google.genai import errors, types
 
+from tools import MODES as MODE_NAMES
 from tools import get_focus, get_recent_errors, log_error
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -27,10 +29,12 @@ MODEL = "gemini-3.6-flash"  # pinned, never a -latest alias: BUILD-LOG s1 addend
 APP_NAME = "german_agent"
 USER_ID = "learner"
 
-# The closed mode vocabulary, settled per BUILD-LOG session 2 item 8. These two
-# strings are what reaches the `mode` field of every log line.
-MODES = {"1": "aufgabe", "2": "gespraech"}
-MINUTES = {"aufgabe": 20, "gespraech": 15}
+# The closed mode vocabulary, settled per BUILD-LOG session 2 item 8 and now
+# enforced in tools.log_error. Both dicts are derived from tools.MODES rather
+# than restating the strings, so the value the runtime announces and the value
+# the log validates cannot drift apart.
+MODES = {"1": MODE_NAMES[0], "2": MODE_NAMES[1]}
+MINUTES = {MODE_NAMES[0]: 20, MODE_NAMES[1]: 15}
 SUBMIT = "FERTIG"
 STATE = {"drafting": False, "calls": 0, "blocked": 0}
 
@@ -79,39 +83,86 @@ def ask_mode() -> str:
         print("Bitte 1 oder 2.")
 
 
+def timed_input(prompt: str, seconds: float) -> str | None:
+    """Read one line, or return None once the clock runs out.
+
+    input() blocks forever, so before this existed a learner who typed nothing
+    was never timed out and the limit spec section 8 criterion 2 calls for was
+    advisory rather than enforced. select gives the read a deadline. Falls back
+    to a blocking read wherever select cannot watch stdin, which is any
+    non-Unix platform and some redirected streams; the prompt is printed first
+    either way, so the fallback must not print it again.
+    """
+    print(prompt, end="", flush=True)
+    try:
+        ready = select.select([sys.stdin], [], [], max(seconds, 0.0))[0]
+    except (OSError, ValueError):
+        return input()
+    if not ready:
+        return None
+    line = sys.stdin.readline()
+    if not line:
+        raise EOFError
+    return line.rstrip("\n")
+
+
+def opener(mode: str) -> str:
+    """The SESSION_START control message, carrying the limit the clock keeps.
+
+    The duration is passed to the model rather than written in tutor.md, so the
+    number the learner is told is by construction the number that is enforced.
+    Before this, MINUTES here and the prose in tutor.md were two sources of
+    truth for one fact.
+    """
+    return f"SESSION_START mode={mode} minutes={MINUTES[mode]}"
+
+
 async def aufgabe(runner, session_id: str) -> None:
     """Issue one task, buffer the draft locally, submit it once."""
-    print(await turn(runner, session_id, "SESSION_START mode=aufgabe"))
-    deadline = time.monotonic() + MINUTES["aufgabe"] * 60
+    mode = MODE_NAMES[0]
+    print(await turn(runner, session_id, opener(mode)))
+    deadline = time.monotonic() + MINUTES[mode] * 60
     draft = []
     STATE["drafting"] = True  # nothing typed below this line reaches the model
     try:
         while True:
-            left = int(deadline - time.monotonic())
-            mins, secs = divmod(left if left > 0 else 0, 60)
-            line = input(f"[{mins}:{secs:02d} · {SUBMIT} = abgeben] ")
+            left = deadline - time.monotonic()
+            if left <= 0:
+                print("Zeit ist um.")
+                break
+            mins, secs = divmod(int(left), 60)
+            line = timed_input(f"[{mins}:{secs:02d} · {SUBMIT} = abgeben] ", left)
+            if line is None:
+                print("\nZeit ist um.")
+                break
             if line.strip().upper() == SUBMIT:
                 break
             draft.append(line)
-            if time.monotonic() >= deadline:
-                print("Zeit ist um.")
-                break
     except EOFError:
         pass
     finally:
         STATE["drafting"] = False
-    print(await turn(runner, session_id, "SUBMISSION mode=aufgabe\n" + "\n".join(draft).strip()))
+    body = "\n".join(draft).strip()
+    print(await turn(runner, session_id, f"SUBMISSION mode={mode}\n{body}"))
 
 
 async def gespraech(runner, session_id: str) -> None:
     """Open on the focus, then correct every turn until the timer expires."""
-    print(await turn(runner, session_id, "SESSION_START mode=gespraech"))
-    deadline = time.monotonic() + MINUTES["gespraech"] * 60
-    while time.monotonic() < deadline:
+    mode = MODE_NAMES[1]
+    print(await turn(runner, session_id, opener(mode)))
+    deadline = time.monotonic() + MINUTES[mode] * 60
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            break
         try:
-            text = input("> ").strip()
+            text = timed_input("> ", left)
         except EOFError:
             break
+        if text is None:
+            print()
+            break
+        text = text.strip()
         if not text or text.upper() == "ENDE":
             break
         print(await turn(runner, session_id, text))
@@ -138,6 +189,13 @@ async def main() -> int:
         sys.exit("Kein Modus gewaehlt.")
     except errors.APIError as err:
         print(f"Model call failed: HTTP {err.code}. {err.message}", file=sys.stderr)
+        if err.code == 429:  # the free-tier ceiling, not a fault. Say so.
+            print(
+                "That is the free-tier quota, not a bug: 20 requests per day and 5 "
+                f"per minute on this key. Every correction already written to {LOG_PATH} "
+                "is saved. Wait for the quota to reset, or use a paid tier.",
+                file=sys.stderr,
+            )
         return 3
     finally:
         await runner.close()

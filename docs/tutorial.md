@@ -1,6 +1,6 @@
 # Tutorial: What You Are Actually Building
 
-Companion to Implementation Spec v2. Purpose: convert the build into transferable understanding of agent architecture. Read once before P1, then again after P5.
+Companion to Implementation Spec v3. Purpose: convert the build into transferable understanding of agent architecture. Read once before P1, then again after P5.
 
 Framing: you are not learning to code. You are learning to specify, review and reject. Every concept below is paired with the review question that catches the corresponding failure.
 
@@ -29,7 +29,7 @@ Consequence worth internalising: an agent's cost and latency are non-determinist
 
 The model does not run code. It emits a structured request naming a tool and its arguments. Your runtime executes the function and feeds the return value back as a new message. The model then decides what to do with it.
 
-| In your build | `log_error` and `get_recent_errors` are registered on the agent. `get_error_summary` and `export_anki_csv` are deliberately not, because nothing about them requires a model's judgment. |
+| In your build | `log_error`, `get_recent_errors` and `get_focus` are registered on the agent — three, matching spec sections 4 and 5. `get_error_summary` and `export_anki_csv` are deliberately not, because nothing about them requires a model's judgment. |
 |---|---|
 | Failure mode | Registering every function you have. Each registered tool consumes context and adds a wrong-choice opportunity. |
 | Review question | "Which tools are registered, and what would break if I removed each one?" |
@@ -139,14 +139,14 @@ An agent you cannot measure is one you cannot improve. Most of what matters here
 
 | Check | Method | Model needed |
 |---|---|---|
-| Did it catch the five planted errors | String comparison | No |
+| Did it catch the five planted errors | Set comparison, `scripts/regression.py` | No |
 | Did it use only valid categories | Set membership | No |
 | Is the correction actually correct German | Your judgment, or a second model | Sometimes |
 | Is the explanation useful | Your judgment | No |
 
 | Failure mode | Evaluating by vibe, then attributing improvement to whichever change you made last. |
 |---|---|
-| Review question | "Give me a script that runs my five planted sentences and reports pass or fail per error." |
+| Review question | "Give me a script that runs my five planted sentences and reports pass or fail per error." Built: `scripts/regression.py`. |
 
 Confidence: this is the single most transferable habit in the build. **H**
 

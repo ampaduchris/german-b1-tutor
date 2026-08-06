@@ -63,7 +63,12 @@ def write_entry(temp_log):
             "detail": "verb_second_after_subordinate_clause",
             "explanation_en": "After a subordinate clause the verb comes first.",
             "severity": "blocking",
-            "mode": "conversation",
+            # `gespraech`, not the fixture's historical "conversation": session
+            # 5 closed the mode vocabulary in tools.MODES, so log_error now
+            # rejects any other spelling. The committed fixture still holds the
+            # old strings on purpose — reads do not validate, and it is
+            # evidence of exactly the drift the closure prevents.
+            "mode": "gespraech",
         }
         payload.update(overrides)
         return tools.log_error(**payload)

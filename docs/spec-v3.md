@@ -27,6 +27,13 @@ Confidence key: **H** verified this session or structurally certain. **M** well 
 |---|---|---|
 | Claude Code | Native installer, Pro or Max subscription | Bundled |
 | Model access | Google AI Studio key, `GOOGLE_API_KEY` | 0 EUR on free tier |
+
+Free-tier ceiling, measured against `gemini-3.6-flash` and confirmed by the
+API's own 429 body on 2026-08-05: **20 requests per day, 5 per minute.** One
+Gespräch turn costs two model calls, so a session of nine to ten turns spends
+the entire daily allowance. "0 EUR" is correct about price and must not be read
+as correct about sufficiency: on the free tier this is a one-session-per-day
+system, and running the regression check costs roughly twelve of the twenty. **H**
 | Runtime | Python 3.10 or later | 0 |
 | Storage | Local folder | 0 |
 
@@ -38,7 +45,7 @@ External dependency count: 2 (ADK, Google GenAI client). No database, no server,
 
 ```
 german-agent/
-  agent.py          ADK agent, two modes, the only file that calls a model
+  agent.py          ADK agent, two modes, the only runtime file calling a model
   tools.py          five deterministic functions, zero model calls
   review.py         weekly aggregation, zero model calls
   data/
@@ -48,7 +55,16 @@ german-agent/
     tutor.md        system prompt, editable without touching code
 ```
 
-Five files. `log.jsonl` is the whole database: append-only, human-readable, diffable, repairable by hand. Roughly two thirds of system behaviour is deterministic at v1. **M**
+Five system files plus one generated artefact (`cards.csv`, regenerated weekly
+from the log). `log.jsonl` is the whole database: append-only, human-readable,
+diffable, repairable by hand. Roughly two thirds of system behaviour is
+deterministic at v1. **M**
+
+Test scaffolding lives outside this list and is permitted to call a model:
+`scripts/smoke_test.py` and `scripts/regression.py`. The rule is that no
+*runtime* file except `agent.py` calls a model, not that no file in the
+repository does. `tests/`, `pyproject.toml`, `uv.lock`, `.env` and `.gitignore`
+are likewise scaffolding rather than architecture.
 
 ---
 
@@ -60,7 +76,7 @@ One JSON object per line:
 {
   "id": "2026-07-29T19:03:11",
   "date": "2026-07-29",
-  "mode": "task",
+  "mode": "aufgabe",
   "task_type": "formal_message",
   "learner_text": "Wenn ich Zeit habe, ich gehe ins Kino.",
   "correction": "Wenn ich Zeit habe, gehe ich ins Kino.",
@@ -81,6 +97,10 @@ Set chosen for the A2 to B1 gap. Adjective endings, connectors, Konjunktiv II, P
 
 `severity` splits errors that cost exam points from stylistic wobble. Only `blocking` drives elicitation and the weekly focus.
 
+**Four fields are closed, not one.** `category` (the thirteen above), `severity` (`blocking` · `minor`), `mode` (`aufgabe` · `gespraech`) and `task_type` (`informal_email` · `forum_post` · `formal_message`, or null in Gespräch). All four are validated in `log_error` and rejected with a `ValueError`, case-sensitively and without coercion.
+
+`mode` and `task_type` were left open until session 5, and the delay was the point: session 2 refused to invent a vocabulary the spec had not defined, session 3 chose one and could only enforce it in the prompt, and session 5 closed it in code once it was settled. The interim cost was real — four spellings for two modes existed across these documents at one point, which is exactly the drift the closed category set exists to prevent, one field over. A missing `task_type` is still accepted even in Aufgabe: nothing downstream reads it, so refusing the write would trade a whole correction for a descriptive label. **H**
+
 ---
 
 ## 4. Component 1: tools.py
@@ -91,8 +111,8 @@ Five plain functions. None calls a model.
 |---|---|---|---|
 | `log_error(...)` | appends one line | Yes | File write, no judgment |
 | `get_recent_errors(n=20)` | last n objects | Yes | List slice |
-| `get_focus()` | top blocking category over last 20 | Yes | Counting and sorting |
-| `get_error_summary(days=7)` | counts by category, blocking only | No | Arithmetic, consumed by review.py |
+| `get_focus()` | top blocking category over last 20, or `None` if that window holds no blocking entries | Yes | Counting and sorting |
+| `get_error_summary(days=7)` | counts by category, blocking only, ordered by count descending with ties in first-seen order | No | Arithmetic, consumed by review.py |
 | `export_anki_csv()` | writes `cards.csv` | No | String formatting |
 
 Three registered, two not. Register a function only when the decision to call it, or the arguments to call it with, genuinely require language understanding.
@@ -263,7 +283,9 @@ Note on the scheduling extension: it replaces initiation only. The agent gains a
 1. **Exact Schreiben formats and word counts** from the official Goethe Übungssatz. The agent's scoring is only as good as the criteria you hand it. Current values are **L**.
 2. **Free-tier Flash quality on German correction.** First session, plant five known errors: a Dativ error, a Konjunktiv II error, an adjective ending, a word-order error after a subordinate clause, and a du/Sie slip. All five caught and correctly categorised means run everything free. Misses on the subtle two are the only justification for a paid model.
 
-Keep those five sentences as a fixed regression check for every subsequent prompt edit.
+Keep those five sentences as a fixed regression check for every subsequent prompt edit. They are implemented in `scripts/regression.py`.
+
+**Each planted sentence must carry exactly one error, and that is a real constraint on how they are written.** The original sentence for the adjective ending was `Ich habe einen neuen Auto gekauft.`, which carries a single underlying mistake — the learner believes `Auto` is masculine — surfacing in two morphological slots, the article and the adjective ending. Free-tier Flash categorised it `gender`, twice, deterministically, and that is a defensible reading, so no single expected category could be correct and the check would have stayed red forever. It is now `Ich habe ein neuen Auto gekauft.`, where the article is correct and only the ending is wrong. A regression sentence whose right answer is arguable is worse than no sentence, because a permanently failing check trains you to skim past the report. **H**
 
 ---
 
