@@ -12,3 +12,13 @@ data/
 __pycache__/
 *.py[cod]
 .DS_Store
+
+# Generated artefacts. Also matched by data/ above; listed explicitly so they
+# stay ignored if they are ever written outside data/.
+*.jsonl
+review-*.md
+regression-*.json
+cards.csv
+
+# Exception: this fixture is committed on purpose -- the tests read it.
+!tests/fixtures/log_sample.jsonl
