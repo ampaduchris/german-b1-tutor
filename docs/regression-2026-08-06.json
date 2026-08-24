@@ -1,0 +1,410 @@
+{
+  "date": "2026-08-06",
+  "generated": "2026-08-06T15:51:04",
+  "model": "gemini-3.6-flash",
+  "pinned_model": "gemini-3.6-flash",
+  "runs_requested": 1,
+  "pace_seconds": 25.0,
+  "prompt_sha256": "25ba237cbfa7b4c508982e00ed34261137dfd78cc9c7fe29b6fcfc0609151316",
+  "agent_sha256": "25b4c7600e614ad5ddbbf799a71f2a2ccb6b3fe20c7392519ba69f1779ef954e",
+  "tools_sha256": "7a748bc3af646f8e91cbc863a2fd11b6f9d75fa31f09996ae22275e771c3d78f",
+  "log_sha256_before": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "log_sha256_after": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "log_untouched": true,
+  "runs": [
+    {
+      "run": 1,
+      "model": "gemini-3.6-flash",
+      "started": "2026-08-06T15:46:54",
+      "sandbox_log": "<temporary sandbox log, outside the repository>",
+      "opening": "Hallo! Warum lernen Sie Deutsch? Antworten Sie bitte mit „weil“.",
+      "sentences": [
+        {
+          "n": 1,
+          "text": "Ich helfe meinen Bruder.",
+          "planted": "Dativ error: helfen governs the dative",
+          "expected": [
+            "case"
+          ],
+          "observed": [
+            "case"
+          ],
+          "lines_written": 1,
+          "malformed": 0,
+          "tool_calls": [
+            "log_error"
+          ],
+          "o2_log_error_called": true,
+          "reply": "Korrektur: Ich helfe mein**em** Bruder.\n*The verb „helfen“ requires the dative case (meinem).*\n\nWarum helfen Sie Ihrem Bruder? Antworten Sie bitte mit einm Satz mit „weil“.",
+          "logged": [
+            {
+              "category": "case",
+              "severity": "blocking",
+              "mode": "gespraech",
+              "detail": "dative_object_after_helfen",
+              "learner_text": "Ich helfe meinen Bruder.",
+              "correction": "Ich helfe meinem Bruder."
+            }
+          ],
+          "verdict": "exact",
+          "pass": true,
+          "strict": true,
+          "extra": [],
+          "o9": {
+            "follow_up": "Warum helfen Sie Ihrem Bruder? Antworten Sie bitte mit einm Satz mit „weil“.",
+            "shared": [
+              "antworten",
+              "warum",
+              "weil"
+            ],
+            "on_target": true
+          }
+        },
+        {
+          "n": 2,
+          "text": "Wenn ich Zeit habe, würde ich mehr lesen.",
+          "planted": "Konjunktiv II: an unreal condition needs hätte, not habe",
+          "expected": [
+            "konjunktiv_ii"
+          ],
+          "observed": [
+            "konjunktiv_ii"
+          ],
+          "lines_written": 1,
+          "malformed": 0,
+          "tool_calls": [
+            "log_error"
+          ],
+          "o2_log_error_called": true,
+          "reply": "Korrektur: Wenn ich Zeit **hätte**, würde ich mehr lesen.\n*Hypothetical conditional sentences require Konjunktiv II in both clauses (hätte ... würde).*\n\nWarum möchten Sie mehr lesen? Antworten Sie bitte mit dem Wort „weil“.",
+          "logged": [
+            {
+              "category": "konjunktiv_ii",
+              "severity": "blocking",
+              "mode": "gespraech",
+              "detail": "konjunktiv_ii_in_if_clause",
+              "learner_text": "Wenn ich Zeit habe, würde ich mehr lesen.",
+              "correction": "Wenn ich Zeit hätte, würde ich mehr lesen."
+            }
+          ],
+          "verdict": "exact",
+          "pass": true,
+          "strict": true,
+          "extra": [],
+          "o9": {
+            "follow_up": "Warum möchten Sie mehr lesen? Antworten Sie bitte mit dem Wort „weil“.",
+            "shared": [
+              "antworten",
+              "warum",
+              "weil"
+            ],
+            "on_target": true
+          }
+        },
+        {
+          "n": 3,
+          "text": "Ich habe ein neuen Auto gekauft.",
+          "planted": "adjective ending: after neuter `ein` the ending is -es, not -en",
+          "expected": [
+            "adjective_endings"
+          ],
+          "observed": [
+            "adjective_endings"
+          ],
+          "lines_written": 1,
+          "malformed": 0,
+          "tool_calls": [
+            "log_error"
+          ],
+          "o2_log_error_called": true,
+          "reply": "Korrektur: Ich habe ein neu**es** Auto gekauft.\n*Neuter nouns with „ein“ in the accusative take the adjective ending „-es“ (ein neues Auto).*\n\nWarum haben Sie ein neues Auto gekauft? Antworten Sie bitte mit dem Wort „weil“.",
+          "logged": [
+            {
+              "category": "adjective_endings",
+              "severity": "blocking",
+              "mode": "gespraech",
+              "detail": "neuter_accusative_adjective_ending",
+              "learner_text": "Ich habe ein neuen Auto gekauft.",
+              "correction": "Ich habe ein neues Auto gekauft."
+            }
+          ],
+          "verdict": "exact",
+          "pass": true,
+          "strict": true,
+          "extra": [],
+          "o9": {
+            "follow_up": "Warum haben Sie ein neues Auto gekauft? Antworten Sie bitte mit dem Wort „weil“.",
+            "shared": [
+              "antworten",
+              "warum",
+              "weil"
+            ],
+            "on_target": true
+          }
+        },
+        {
+          "n": 4,
+          "text": "Wenn ich Zeit habe, ich gehe ins Kino.",
+          "planted": "word order: verb second after a subordinate clause",
+          "expected": [
+            "word_order"
+          ],
+          "observed": [
+            "word_order"
+          ],
+          "lines_written": 1,
+          "malformed": 0,
+          "tool_calls": [
+            "log_error"
+          ],
+          "o2_log_error_called": true,
+          "reply": "Korrektur: Wenn ich Zeit habe, **gehe ich** ins Kino.\n*When a sentence starts with a subordinate clause, the main verb must follow immediately after the comma (gehe ich).*\n\nWarum gehen Sie gerne ins Kino? Antworten Sie bitte mit dem Wort „weil“.",
+          "logged": [
+            {
+              "category": "word_order",
+              "severity": "blocking",
+              "mode": "gespraech",
+              "detail": "verb_position_after_subordinate_clause",
+              "learner_text": "Wenn ich Zeit habe, ich gehe ins Kino.",
+              "correction": "Wenn ich Zeit habe, gehe ich ins Kino."
+            }
+          ],
+          "verdict": "exact",
+          "pass": true,
+          "strict": true,
+          "extra": [],
+          "o9": {
+            "follow_up": "Warum gehen Sie gerne ins Kino? Antworten Sie bitte mit dem Wort „weil“.",
+            "shared": [
+              "antworten",
+              "warum",
+              "weil"
+            ],
+            "on_target": true
+          }
+        },
+        {
+          "n": 5,
+          "text": "Sehr geehrter Herr Meier, kannst du mir helfen?",
+          "planted": "du/Sie slip in a formal message",
+          "expected": [
+            "register"
+          ],
+          "observed": [
+            "register"
+          ],
+          "lines_written": 1,
+          "malformed": 0,
+          "tool_calls": [
+            "log_error"
+          ],
+          "o2_log_error_called": true,
+          "reply": "Korrektur: Sehr geehrter Herr Meier, **können Sie** mir helfen?\n*Use „Sie“ (können Sie) when addressing someone formally as „Herr Meier“.*\n\nWarum bitten Sie Ihren Kollegen Herr Meier um Hilfe? Antworten Sie bitte mit dem Wort „weil“.",
+          "logged": [
+            {
+              "category": "register",
+              "severity": "blocking",
+              "mode": "gespraech",
+              "detail": "inconsistent_register_formal_salutation_with_du",
+              "learner_text": "Sehr geehrter Herr Meier, kannst du mir helfen?",
+              "correction": "Sehr geehrter Herr Meier, können Sie mir helfen?"
+            }
+          ],
+          "verdict": "exact",
+          "pass": true,
+          "strict": true,
+          "extra": [],
+          "o9": {
+            "follow_up": "Warum bitten Sie Ihren Kollegen Herr Meier um Hilfe? Antworten Sie bitte mit dem Wort „weil“.",
+            "shared": [
+              "antworten",
+              "warum",
+              "weil"
+            ],
+            "on_target": true
+          }
+        }
+      ],
+      "obligations": {
+        "o8_get_focus_called_before_first_output": true,
+        "o4_get_recent_errors_called_at_start": true,
+        "opening_tool_calls": [
+          "get_focus",
+          "get_recent_errors"
+        ],
+        "focus_returned": null,
+        "elicitation_row_used": "kein Fokus",
+        "elicitation_row_question": "Warum lernen Sie Deutsch? Antworten Sie mit \"weil\".",
+        "o9_consecutive_on_target": 5,
+        "o9_minimum": 3,
+        "o9_indicator_met": true,
+        "o9_is_indicator_not_proof": true
+      },
+      "aufgabe": {
+        "mode": "aufgabe",
+        "minutes": 20,
+        "task_issued": "**Aufgabe 3: Formelle Mitteilung**\n\nSie können nächste Woche wegen eines wichtigen Termins nicht an der Teambesprechung am Dienstag teilnehmen. Schreiben Sie eine formelle Nachricht an Ihren Abteilungsleiter, Herrn Schneider.\n\nSchreiben Sie zu folgenden Punkten:\n- Grund für Ihr Fehlen nennen\n- Um Entschuldigung bitten\n- Vorschlag machen, wie Sie die Informationen aus der Besprechung bekommen\n\n**Wortanzahl:** ca. 40 Wörter  \n**Zeitlimit:** 20 Minuten",
+        "o10_task_states_time_limit": true,
+        "o10_task_states_word_count": true,
+        "o10_partial_draft_reply": "[Aufgabe laeuft. Keine Rueckmeldung vor der Abgabe.]",
+        "o10_model_calls_while_drafting": 0,
+        "o10_silence_held": true,
+        "submission": "Sehr geehrter Herr Meier, kannst du mir helfen? Ich brauche einen neuen Termin für unsere Besprechung. Wenn ich Zeit habe, ich komme am Montag ins Büro. Vielen Dank im Voraus.",
+        "planted": "du/Sie slip in a formal message, and verb-second after a subordinate clause",
+        "expected": [
+          "register",
+          "word_order"
+        ],
+        "observed": [
+          "register",
+          "word_order"
+        ],
+        "lines_written": 2,
+        "reply": "### Korrigierter Text\n\nSehr geehrter Herr Meier, **können Sie** mir helfen? Ich brauche einen neuen Termin für unsere Besprechung. Wenn ich Zeit habe, **komme ich** am Montag ins Büro. Vielen Dank im Voraus.\n\n---\n\n### Fehleranalyse\n\n1. **kannst du mir helfen?** $\\rightarrow$ **können Sie mir helfen?**  \n   *Rule:* Use formal \"Sie\" when addressing someone formally with \"Sehr geehrter\".\n2. **Wenn ich Zeit habe, ich komme...** $\\rightarrow$ **Wenn ich Zeit habe, komme ich...**  \n   *Rule:* When a sentence starts with a subordinate clause, the verb in the main clause must come immediately after the comma.\n\n---\n\n### Bewertung\n\n- **Aufgabenerfüllung:** Die drei geforderten Punkte (Grund für Fehlen bei der Besprechung, Entschuldigung, Vorschlag zur Information) wurden nicht bearbeitet. Die Wortanzahl ist mit 28 Wörtern zu kurz.\n- **Kohärenz:** Sätze sind zwar verständlich, passen aber inhaltlich nicht zur Aufgabenstellung.\n- **Wortschatz:** Grundlegender A2-Wortschatz, teilweise unpassend für eine formelle Mitteilung an den Abteilungsleiter.\n- **Grammatische Korrektheit:** Mehrere relevante Fehler bei Register und Wortstellung.\n\n**Gesamtpunktzahl:** 35 / 100  \n**Ergebnis:** Unter der 60-Prozent-Marke.",
+        "o2_log_error_called": true,
+        "o6_score_out_of_100": true,
+        "o6_score": "35",
+        "modes_written": [
+          "aufgabe"
+        ],
+        "task_types_written": [
+          "formal_message"
+        ],
+        "logged": [
+          {
+            "category": "register",
+            "severity": "blocking",
+            "mode": "aufgabe",
+            "task_type": "formal_message",
+            "detail": "inconsistent_register_du_with_formal_salutation"
+          },
+          {
+            "category": "word_order",
+            "severity": "blocking",
+            "mode": "aufgabe",
+            "task_type": "formal_message",
+            "detail": "verb_position_after_subordinate_clause"
+          }
+        ],
+        "verdict": "exact",
+        "pass": true,
+        "strict": true,
+        "extra": []
+      },
+      "model_calls": 17,
+      "aborted": null,
+      "quota": false
+    }
+  ],
+  "summary": {
+    "runs_requested": 1,
+    "runs_completed": 1,
+    "per_sentence": {
+      "1": {
+        "text": "Ich helfe meinen Bruder.",
+        "expected": [
+          "case"
+        ],
+        "runs_scored": 1,
+        "passed": 1,
+        "strict": 1,
+        "verdicts": [
+          "exact"
+        ],
+        "observed_per_run": [
+          [
+            "case"
+          ]
+        ],
+        "varied": false
+      },
+      "2": {
+        "text": "Wenn ich Zeit habe, würde ich mehr lesen.",
+        "expected": [
+          "konjunktiv_ii"
+        ],
+        "runs_scored": 1,
+        "passed": 1,
+        "strict": 1,
+        "verdicts": [
+          "exact"
+        ],
+        "observed_per_run": [
+          [
+            "konjunktiv_ii"
+          ]
+        ],
+        "varied": false
+      },
+      "3": {
+        "text": "Ich habe ein neuen Auto gekauft.",
+        "expected": [
+          "adjective_endings"
+        ],
+        "runs_scored": 1,
+        "passed": 1,
+        "strict": 1,
+        "verdicts": [
+          "exact"
+        ],
+        "observed_per_run": [
+          [
+            "adjective_endings"
+          ]
+        ],
+        "varied": false
+      },
+      "4": {
+        "text": "Wenn ich Zeit habe, ich gehe ins Kino.",
+        "expected": [
+          "word_order"
+        ],
+        "runs_scored": 1,
+        "passed": 1,
+        "strict": 1,
+        "verdicts": [
+          "exact"
+        ],
+        "observed_per_run": [
+          [
+            "word_order"
+          ]
+        ],
+        "varied": false
+      },
+      "5": {
+        "text": "Sehr geehrter Herr Meier, kannst du mir helfen?",
+        "expected": [
+          "register"
+        ],
+        "runs_scored": 1,
+        "passed": 1,
+        "strict": 1,
+        "verdicts": [
+          "exact"
+        ],
+        "observed_per_run": [
+          [
+            "register"
+          ]
+        ],
+        "varied": false
+      }
+    },
+    "aufgabe_runs": 1,
+    "aufgabe_observed": [
+      [
+        "register",
+        "word_order"
+      ]
+    ],
+    "categories_ok": true,
+    "obligations_ok": true,
+    "all_passed": true,
+    "o9_streaks": [
+      5
+    ],
+    "model_calls_total": 17
+  },
+  "_note": "Committed baseline. Produced by scripts/regression.py against the pinned model on 2026-08-06. The only edit is sandbox_log, replaced with a placeholder; every measurement is as recorded."
+}

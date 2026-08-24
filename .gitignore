@@ -20,5 +20,10 @@ review-*.md
 regression-*.json
 cards.csv
 
-# Exception: this fixture is committed on purpose -- the tests read it.
+# Exceptions, committed on purpose. Generated artefacts stay ignored above;
+# these two are evidence rather than state.
+#   - the fixture the tests read
+#   - one regression baseline, so the harness's results are visible without
+#     running it and burning a day of free-tier quota
 !tests/fixtures/log_sample.jsonl
+!docs/regression-*.json
