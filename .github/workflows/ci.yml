@@ -1,0 +1,47 @@
+name: CI
+
+# The deterministic layer is supposed to be exactly reproducible, so this
+# workflow deliberately sets no GOOGLE_API_KEY and holds no secret. If a test
+# ever needs one, that test has stopped testing the deterministic layer.
+#
+# Python 3.10 is the floor pyproject.toml commits to; all four are run so the
+# floor is a measured claim rather than an aspiration.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run the deterministic layer
+        run: uv run --python ${{ matrix.python }} pytest -q
+
+      - name: Assert no model call escaped into the test run
+        # tools.py and review.py must never import a model client. This greps
+        # the runtime files rather than trusting the suite to notice.
+        run: |
+          if grep -nE '^\s*(import|from)\s+(google\.genai|google\.adk)' tools.py review.py; then
+            echo "::error::a runtime file with a zero-model-call guarantee imports a model client"
+            exit 1
+          fi
+          echo "tools.py and review.py import no model client -- as specified"

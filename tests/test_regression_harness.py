@@ -381,6 +381,12 @@ def test_a_429_stops_the_whole_invocation(monkeypatch, tmp_path):
                     "model": model})
         return run
 
+    # main() guards on a non-empty key before it launches anything, so without
+    # this the guard returns EXIT_INCOMPLETE and no run is ever attempted. The
+    # value is never sent anywhere: run_once is monkeypatched above. Set here
+    # rather than in a fixture so the suite stays green on a fresh clone, which
+    # has no .env at all -- load_dotenv does not override an existing variable.
+    monkeypatch.setenv("GOOGLE_API_KEY", "not-a-real-key")
     monkeypatch.setattr(regression, "run_once", quota_run)
     monkeypatch.setattr(tools, "LOG_PATH", tmp_path / "log.jsonl")
     (tmp_path / "log.jsonl").write_text("")
