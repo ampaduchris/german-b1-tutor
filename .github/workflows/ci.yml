@@ -6,6 +6,11 @@ name: CI
 #
 # Python 3.10 is the floor pyproject.toml commits to; all four are run so the
 # floor is a measured claim rather than an aspiration.
+#
+# Actions are pinned to full commit SHAs, with the release in a trailing
+# comment. A tag can be moved to different code after the fact; a SHA cannot.
+# It is also the only option for setup-uv, which stopped publishing floating
+# major tags: `astral-sh/setup-uv@v10` does not resolve.
 
 on:
   push:
@@ -26,11 +31,14 @@ jobs:
         python: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
+          # Explicit rather than v10's `auto`, which only differs by disabling
+          # the cache on pull_request_target, workflow_run and release. This
+          # workflow runs on none of those.
           enable-cache: true
 
       - name: Run the deterministic layer
