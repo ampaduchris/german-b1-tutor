@@ -40,6 +40,11 @@ jobs:
           # the cache on pull_request_target, workflow_run and release. This
           # workflow runs on none of those.
           enable-cache: true
+          # Not optional under a matrix. The cache key embeds this input, and
+          # without it falls back to the runner's system Python, so all four
+          # jobs computed one identical key, raced to save it, and three
+          # warned "Unable to reserve cache". One key per version ends the race.
+          python-version: ${{ matrix.python }}
 
       - name: Run the deterministic layer
         run: uv run --python ${{ matrix.python }} pytest -q
