@@ -1245,3 +1245,97 @@ length by eye; and nothing detects a lapse in use (failure mode 7).
 - The kill-mid-write half of the atomicity claim, the Anki import, and Chris's
   judgment of score plausibility are the only things left that no test here can
   reach.
+
+---
+
+## Maintenance: dependency refresh, and the CI change before it
+Date: 2026-09-22
+
+Not a build session. Recorded because it changes what runs, and because the
+2026-09-12 CI change it follows was never logged. Nothing in `agent.py`,
+`tools.py` or `prompts/tutor.md` changed, so the three hashes pinned in
+`docs/regression-2026-08-06.json` still match the files.
+
+### Built
+- `pyproject.toml` — `google-adk` 2.5.0 -> 2.9.2, `google-genai` 2.15.0 -> 2.24.0.
+- `uv.lock` — only those two move. `tzdata` and `tzlocal` drop out because ADK no
+  longer requires them; nothing here imports either. 58 locked packages -> 56.
+- `.github/workflows/ci.yml` (2026-09-12, commits `ed6e2cb`, `8c3ba6c`) —
+  `actions/checkout` v4 -> v7.0.1 and `astral-sh/setup-uv` v5 -> v10.1.0, both
+  node24, pinned by full commit SHA; `python-version: ${{ matrix.python }}`
+  passed to setup-uv.
+
+### Decisions taken
+- Latest patch releases (2.9.2 / 2.24.0) rather than the 2.9.0 / 2.23.0 first
+  tested on 2026-09-12. Three releases landed in between, so everything below
+  was re-run against the versions committed, not the ones first tried.
+- Exact `==` pins kept, per the Session 1 addendum.
+- CI actions pinned by SHA, not tag. For setup-uv it is forced: the project
+  publishes no floating major tags, so `@v10` does not resolve and every run
+  would fail. For checkout it is chosen: a tag can be moved to different code.
+- `python-version` passed to setup-uv under the matrix. Without it the uv cache
+  key embeds the runner's system Python (3.12.3), all four jobs compute one key,
+  race to save it, and three warn "Unable to reserve cache".
+- [AMBIGUOUS] Left `scripts/smoke_test.py`'s new genai notice unsuppressed (see
+  verification). It is scaffolding, prints once per run, and a learner never
+  runs it. Suppressing it means a logger filter or disabling AFC in that file,
+  and verifying either spends a second model call. Overrule if the noise matters.
+
+### Verification results
+- M1 PASS — `uv run pytest`, no key, Python 3.10 / 3.11 / 3.12 / 3.13: 168
+  passed on each. Warnings fall on every version (3.10: 5 -> 2; 3.13: 4 -> 1).
+  The two left are raised inside third-party imports (ADK's own
+  `BaseAgentConfig`, OpenTelemetry on 3.10), not by code here.
+- M2 PASS — **the model receives identical requests.** A scripted Gespräch turn
+  (`get_focus` -> `get_recent_errors` -> question; learner sentence ->
+  `log_error` -> correction) was driven through the real agent under both
+  versions, with a `before_model_callback` returning canned responses, so ADK
+  genuinely executed all three tools and serialised their results. All five
+  requests are byte-identical, unmasked, except the new log entry's own `id`
+  timestamp: the two runs were one second apart. System instruction is
+  `tutor.md` verbatim; the three tool declarations match. Zero model calls.
+- M3 PASS — ADK 2.9.0's two relevant breaking changes, checked against code.
+  `InMemorySessionService` now raises `SessionNotFoundError` for an unknown
+  session: every `run_async` site creates its session through the same runner
+  with a matching `app_name`. Dynamic-instruction labelling: applies only when
+  an agent also sets `static_instruction`; this one does not, and M2 shows no
+  labelling markers in any request.
+- M4 PASS — `scripts/smoke_test.py`: one real call, `gemini-3.6-flash` replied
+  in German, exit 0. That call goes through `LlmAgent` and `InMemoryRunner`, so
+  it exercises the upgraded path, not the raw client.
+- M5 — **new stderr notice, smoke test only.** genai after 2.15.0 logs "Direct
+  use of automatic function calling (AFC) ... is not recommended" once per
+  process when AFC is left at its default. ADK never sets AFC. With no tools
+  (the smoke test) genai defaults it on and prints the notice. When every tool
+  is a function declaration (the tutor, the harness) genai disables AFC
+  silently — its incompatible-tools warning fires only for a *mix* of callables
+  and declarations. Measured: two stubbed model calls through the real tutor
+  produced zero `google_genai` log records on either version. Positive control:
+  the same handler catches the notice when AFC is on.
+- [NOT VERIFIED] Model behaviour on the new versions. The regression harness was
+  not re-run (~17 calls, outside what this change was allowed to spend), so
+  `docs/regression-2026-08-06.json` predates it. M2 proves the model is asked
+  the same thing. It does not prove genai 2.24 parses a real function-call
+  response the same way — the smoke test returns text only — nor that the model
+  answers the same.
+
+### Deviations from spec-v3.md
+- None. External dependency count is still 2.
+
+### Wanted but not built
+- A committed `scripts/capture_requests.py` for M2, making the next upgrade a
+  two-command diff. Not built: one upgrade is not yet a pattern.
+- Suppressing the smoke-test notice. See the [AMBIGUOUS] decision.
+
+### For the next session
+- The next full regression run is the first on these versions. Save it as a new
+  baseline and update the README results table; do not overwrite the 2026-08-06
+  one, which is evidence for the versions it ran on.
+- The request-capture technique is reusable and costs nothing: a
+  `before_model_callback` that returns an `LlmResponse` short-circuits the model,
+  and a list of canned responses scripts whole turns, tool calls included.
+- `uv run --python 3.X` inside the project rebuilds `.venv` for that version.
+  Restore with `uv sync --python 3.13` afterwards.
+- Everything the Session 1 addendum recorded about ADK 2.5.0's API surface
+  (`InMemoryRunner(agent=, app_name=)`, keyword-only `run_async`,
+  `session_service.create_session`, `is_final_response()`) still holds on 2.9.2.

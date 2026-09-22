@@ -169,8 +169,9 @@ spots of the model under test.
 "No hand-written code" is a claim about typing, and typing is not the
 interesting part. Every decision that shaped this system was argued in writing
 before any code existed, and the record is
-[`docs/BUILD-LOG.md`](docs/BUILD-LOG.md) — 1,247 lines, append-only, one entry
-per build session, written to be read by whoever changes this next.
+[`docs/BUILD-LOG.md`](docs/BUILD-LOG.md) — over 1,300 lines, append-only, an
+entry for every build session and every change since, written to be read by
+whoever changes this next.
 
 It is the honest artefact because it records what went wrong alongside what went
 right:
