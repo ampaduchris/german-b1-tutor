@@ -1339,3 +1339,55 @@ Not a build session. Recorded because it changes what runs, and because the
 - Everything the Session 1 addendum recorded about ADK 2.5.0's API surface
   (`InMemoryRunner(agent=, app_name=)`, keyword-only `run_async`,
   `session_service.create_session`, `is_final_response()`) still holds on 2.9.2.
+
+---
+
+## Maintenance: CI runner pinned, weekly run added
+Date: 2026-10-02
+
+Issue #7, PR #8. The first change to reach `main` through a pull request rather
+than a direct push.
+
+### Built
+- `.github/workflows/ci.yml` — `runs-on: ubuntu-latest` -> `ubuntu-26.04`; a
+  `schedule` trigger, Mondays 06:17 UTC.
+- `README.md` — the workflow's row now says it also runs weekly.
+
+### Decisions taken
+- Pinned, not aliased: the rule `agent.py` already applies to the model.
+  `ubuntu-latest` moves from 24.04 to 26.04 as a rollout over several weeks from
+  2026-10-19 (actions/runner-images#14748), so during that window one commit
+  could run on two operating systems.
+- 26.04 over 24.04. It is generally available, it is where the alias is heading,
+  and this PR's CI is the evidence the suite passes on it. 24.04 would only defer
+  the same move to a forced deprecation.
+- Weekly, because a push-only badge reports the last push, and for a project
+  touched every few weeks that can be a month old. `uv.lock` pins dependencies;
+  the runner image, uv and the Python builds uv downloads are not pinned and move
+  without a commit here. 06:17, off the hour: GitHub delays top-of-hour
+  schedules under load.
+- Changes now go through issue -> PR -> merge commit, so CI runs before `main`
+  moves. The setup-uv v10 upgrade (2026-09-12) went straight to `main`, its
+  cache-key warning was only visible afterwards, and it took a second commit.
+
+### Verification results
+- C1 PASS — PR #8, Actions run 37043303022: all four matrix jobs succeeded, each
+  reporting runner label `ubuntu-26.04`.
+- C2 PASS — zero annotations on all four test jobs. The ubuntu-latest notice
+  every run carried since mid-September is gone, and no "Unable to reserve
+  cache" warning: the per-version cache keys hold on the new OS, whose version
+  string is part of the key.
+- C3 PASS — 168 tests locally, no key. No Python changed.
+- [NOT VERIFIED] The schedule itself. Its first firing is Monday 2026-10-05
+  06:17 UTC, and `workflow_dispatch` exercises the jobs, not the trigger.
+
+### Deviations from spec-v3.md
+- None.
+
+### For the next session
+- Moving to a later image is a deliberate edit to `runs-on`, made through a PR
+  so the new image is proven before `main` uses it. Nothing updates it
+  automatically, Dependabot included.
+- GitHub disables scheduled workflows on public repositories after 60 days with
+  no activity. If the weekly runs stop, re-enable the workflow from the Actions
+  tab; the stop itself means the project went quiet for two months.
