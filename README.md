@@ -117,7 +117,7 @@ every correction already logged is safely on disk.
 | `scripts/regression.py` | The fixed check from spec section 11. Five planted errors, graded by set comparison. Never writes to the real log. |
 | `scripts/smoke_test.py` | One model call, no tools, no prompt. Answers only "is the key working?" |
 | `tests/` | 168 unit tests over everything that does not need a model. No API key required; they pass on a fresh clone. |
-| `.github/workflows/ci.yml` | Runs those tests on Python 3.10 through 3.13, with no key and no secret configured. That is the point: a deterministic layer that needed a key would not be one. |
+| `.github/workflows/ci.yml` | Runs those tests on Python 3.10 through 3.13, on every push and pull request and once a week, with no key and no secret configured. That is the point: a deterministic layer that needed a key would not be one. |
 
 Documentation:
 

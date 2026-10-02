@@ -17,6 +17,14 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Weekly, so the badge says whether the suite passes now rather than whether
+  # it passed at the last push. Dependencies are pinned, but the runner image,
+  # uv and the Python builds it downloads are not, and they move without a
+  # commit here. Off the hour because GitHub delays top-of-hour schedules under
+  # load. GitHub disables schedules on a public repo after 60 days with no
+  # activity; a disabled schedule is itself a signal the project went quiet.
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
 
 permissions:
   contents: read
@@ -24,7 +32,12 @@ permissions:
 jobs:
   test:
     name: tests (py${{ matrix.python }})
-    runs-on: ubuntu-latest
+    # Pinned, never a -latest alias: the same rule agent.py applies to the
+    # model. `ubuntu-latest` moves to 26.04 as a rollout over several weeks from
+    # 2026-10-19, so during that window one commit could run on 24.04 in one job
+    # and 26.04 in the next. 26.04 is GA and is where the alias is heading; a
+    # later image is a deliberate edit here, not something that happens to us.
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
