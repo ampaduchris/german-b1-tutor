@@ -1,0 +1,38 @@
+name: Deferred extension
+description: Record something deliberately not built yet, and the symptom that would justify building it.
+title: "<Extension> — unlocks when <trigger symptom>"
+labels: ["deferred"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nothing in this project gets built ahead of the symptom that demands it
+        ([spec section 10](https://github.com/ampaduchris/german-b1-tutor/blob/main/docs/spec-v3.md)).
+        A deferred issue records that decision. It closes when its trigger is
+        observed, not when someone has time for it. See #1 to #6 for examples.
+  - type: textarea
+    id: trigger
+    attributes:
+      label: Trigger symptom — the only thing that should close this
+      description: Something observable in use, not a wish. "I start skipping days", not "it would be nice to have reminders".
+    validations:
+      required: true
+  - type: textarea
+    id: why-not-now
+    attributes:
+      label: Why it is not needed now
+      description: Cite the file, constant or number that makes it unnecessary today, so the claim can be checked.
+    validations:
+      required: true
+  - type: input
+    id: teaches
+    attributes:
+      label: What it would teach
+      placeholder: "e.g. RAG, grounding"
+  - type: textarea
+    id: done
+    attributes:
+      label: What done would look like
+      description: Prefer a measurement, e.g. "the regression harness still scores 5/5 afterwards".
+    validations:
+      required: true
