@@ -129,6 +129,7 @@ Documentation:
 | `docs/build-sessions.md` | The five build prompts, one per session. |
 | `docs/sample-session.md` | A real run, verbatim: five planted errors, the agent's replies, and the log lines they produced. |
 | `docs/regression-2026-08-06.json` | The committed regression baseline the table above is read from. |
+| `CONTRIBUTING.md` | How to propose a change, and the rules a pull request has to keep. |
 | `docs/explainer.html` | Interactive walkthrough of the architecture. [Live version](https://ampaduchris.github.io/german-b1-tutor/), or open the file in a browser. |
 
 ## Setup
