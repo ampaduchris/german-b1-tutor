@@ -200,4 +200,21 @@ reproducible rather than merely described.
 
 Nothing gets built ahead of the symptom that demands it. Spec section 10 lists
 the deferred extensions and the trigger for each. If a change proposes one, the
-correct response is to record it in the build log and not build it.
+correct response is to record it on its `deferred` issue, or open one with the
+template, and not build it.
+
+## Roadmap: what is deliberately not built
+
+Each of these is an open issue labelled
+[`deferred`](https://github.com/ampaduchris/german-b1-tutor/issues?q=label%3Adeferred). An issue closes when its trigger symptom
+is observed, not when someone finds time for it. Each one names the evidence
+that makes it unnecessary today and what done would look like.
+
+| Extension | Unlocks when | Teaches | Issue |
+|---|---|---|---|
+| Retrieval over error history | the log outgrows the context budget | RAG, grounding | [#1](https://github.com/ampaduchris/german-b1-tutor/issues/1) |
+| Scheduled daily prompt | I start skipping days | triggers, statelessness | [#2](https://github.com/ampaduchris/german-b1-tutor/issues/2) |
+| Structured correction output | I want trends charted | structured output | [#3](https://github.com/ampaduchris/german-b1-tutor/issues/3) |
+| Voice in and out | Sprechen becomes the weakest module | multimodal, latency | [#4](https://github.com/ampaduchris/german-b1-tutor/issues/4) |
+| Anki via MCP | the manual CSV import is the step I drop | MCP integration | [#5](https://github.com/ampaduchris/german-b1-tutor/issues/5) |
+| Split grammar and conversation agents | one prompt is visibly overloaded | subagents, context isolation | [#6](https://github.com/ampaduchris/german-b1-tutor/issues/6) |
