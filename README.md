@@ -134,7 +134,8 @@ Documentation:
 
 ## Setup
 
-- Python 3.10 or later. `uv` manages it; the venv here is 3.13.5.
+- Python 3.10 or later; CI tests 3.10 through 3.13. `.python-version` pins
+  local development to 3.13, so `uv sync` builds that venv unless told otherwise.
 - A Google AI Studio key in `.env` as `GOOGLE_API_KEY=…`. Free tier is enough.
 - `uv sync` builds the environment. There is no `pip` in the venv and no
   `requirements.txt`; add dependencies with `uv add`.
