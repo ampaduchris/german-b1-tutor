@@ -1391,3 +1391,52 @@ than a direct push.
 - GitHub disables scheduled workflows on public repositories after 60 days with
   no activity. If the weekly runs stop, re-enable the workflow from the Actions
   tab; the stop itself means the project went quiet for two months.
+
+---
+
+## Maintenance: Dependabot, and a pinned development interpreter
+Date: 2026-10-12
+
+Issue #11, PR #12.
+
+### Built
+- `.github/dependabot.yml` — weekly version updates, Monday 07:00
+  Europe/Berlin, for `uv` and `github-actions`. No grouping.
+- `.python-version` — `3.13`.
+- `CONTRIBUTING.md` — Dependabot PRs for `google-adk` or `google-genai` are not
+  merged on green CI alone.
+- `README.md` — the setup line names the pin and what CI still tests.
+
+### Decisions taken
+- One dependency per PR, not grouped. The suite never reaches the model, so a
+  model-client bump is not proven by CI; the 2026-09-22 update needed a request
+  capture and a smoke test. Grouping would make a failure unattributable.
+- Dependabot's PRs are not merged in this change. Its first run should open
+  google-adk 2.9.2 -> 2.11.0, google-genai 2.24.0 -> 2.29.0 and setup-uv
+  v10.1.0 -> v10.3.0, each needing its own check.
+- `.python-version` pins local development only. `requires-python` stays
+  `>=3.10`.
+
+### Verification results
+- D1 PASS — `.python-version` does not narrow CI. In a throwaway worktree: bare
+  `uv run` gives 3.13, `UV_PYTHON=3.10` (what setup-uv's `python-version`
+  input sets) gives 3.10, `--python 3.11` (the run step) gives 3.11. The real
+  project venv was not touched.
+- D2 PASS — PR #12, Actions run 38245012203: four jobs on `ubuntu-26.04`, all
+  green, zero annotations. [NOT VERIFIED] from CI's own logs which interpreter
+  each job used: the token cannot read Actions logs, and `pytest -q` does not
+  print it. D1 plus the explicit `--python` cover it.
+- D3 PASS — 168 tests locally, no key.
+- Closes the 2026-10-02 entry's open item: the weekly schedule fired on
+  Monday 2026-10-05, all four jobs green on `ubuntu-26.04`, zero annotations.
+  It ran at 14:45 UTC, 8 h 28 min after its 06:17 slot. The 2026-10-12 slot had
+  not fired by 11:49 UTC. GitHub schedules are best-effort; the off-the-hour
+  minute did not prevent a long delay.
+- [NOT VERIFIED] That Dependabot parses the config and opens PRs. It only runs
+  once the file is on `main`.
+
+### For the next session
+- A green Dependabot PR is not a verified one when it touches `google-adk` or
+  `google-genai`. Follow CONTRIBUTING.md.
+- "Weekly" means the week, not the hour: expect a scheduled run some time on
+  Monday, UTC.
