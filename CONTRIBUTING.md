@@ -43,6 +43,10 @@ requests a day, and a full regression run spends about 17 of them.
   [Editing the prompt](README.md#editing-the-prompt).
 - **`docs/BUILD-LOG.md` is append-only.** Record decisions and what you could not
   verify, following the rules at the top of the file.
+- **Dependabot PRs for `google-adk` or `google-genai` are not merged on green CI
+  alone.** The tests never reach the model. Re-run the request capture described
+  in the 2026-09-22 maintenance entry of `docs/BUILD-LOG.md`, then the one-call
+  smoke test, before merging.
 - **`.env` and `data/` are never committed.**
 
 ## Pull requests

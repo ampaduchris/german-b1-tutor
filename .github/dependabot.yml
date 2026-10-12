@@ -1,0 +1,23 @@
+# Version updates, checked weekly. Each dependency gets its own PR on purpose:
+# the test suite never reaches the model, so a google-adk or google-genai bump
+# is not proven by green CI alone and has to be verified on its own. See
+# CONTRIBUTING.md and the 2026-09-22 maintenance entry in docs/BUILD-LOG.md.
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Berlin"
+
+  # The workflow pins actions by commit SHA with the release in a trailing
+  # comment; Dependabot updates both together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Berlin"
