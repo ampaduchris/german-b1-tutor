@@ -1440,3 +1440,52 @@ Issue #11, PR #12.
   `google-genai`. Follow CONTRIBUTING.md.
 - "Weekly" means the week, not the hour: expect a scheduled run some time on
   Monday, UTC.
+
+---
+
+## Maintenance: three Dependabot merges, and a regression run cut short
+Date: 2026-10-17
+
+No code changed. Records what reached `main` since the 2026-10-12 entry, closes
+that entry's open item, and records an incomplete regression run.
+
+### Merged since the last entry
+- #13 astral-sh/setup-uv 10.1.0 -> 10.3.0, merge `aa9e130`, 2026-10-13.
+- #14 google-adk 2.9.2 -> 2.11.0, merge `8a83f39`, 2026-10-15.
+- #15 google-genai 2.24.0 -> 2.29.0, merge `e7310ad`, 2026-10-16.
+
+All three were pre-checked and merged by a scheduled Claude Code task on
+Chris's machine. It posts its check on the PR and merges only when every check
+passes, following CONTRIBUTING.md. #13: the new SHA resolves to the v10.3.0 tag
+and nothing in the release notes touches the inputs this workflow uses. #14 and
+#15: the request capture reported identical requests and the one-call smoke
+test exited 0. #15's first smoke test hit HTTP 503 ("high demand"), so the task
+held the PR; a re-run passed and it was merged.
+
+### Verification results
+- Closes the 2026-10-12 entry's [NOT VERIFIED] Dependabot item. Dependabot
+  never ran at first because the repository's dependency graph was disabled.
+  It was enabled on 2026-10-12, and the first run opened #13, #14 and #15.
+- Weekly schedule, two data points: 2026-10-05 at 14:45 UTC and 2026-10-12 at
+  15:30 UTC, both green on all four jobs. Each ran 8.5 to 9 hours after its
+  06:17 slot.
+- R1 INCOMPLETE — `scripts/regression.py --runs 1` on 2026-10-17, against
+  `gemini-3.6-flash` with google-adk 2.11.0 and google-genai 2.29.0. The
+  Gespräch phase completed: 5/5 planted errors caught with the exact category,
+  `log_error` called on every correction (obligation 2), `get_recent_errors`
+  and `get_focus` before the first output (obligations 4 and 8), 5 consecutive
+  on-target follow-ups (obligation 9, indicator), real log untouched. The run
+  then aborted with HTTP 503 before the Aufgabe phase, after 15 model calls,
+  and exited 3. The prompt, agent and tools hashes are identical to the
+  2026-08-06 baseline.
+- Not committed as a baseline: an incomplete run is not one, and stitching the
+  Aufgabe phase on from a second partial run would bypass the fixed check.
+  `docs/regression-2026-08-06.json` is still the latest complete baseline,
+  recorded on google-adk 2.5.0 and google-genai 2.15.0.
+
+### For the next session
+- Re-run the regression in full once the daily quota resets (midnight Pacific).
+  If it passes, it becomes the baseline for v1.0.0.
+- HTTP 503 from the API has now interrupted both a smoke test and a regression
+  run. It is capacity on Google's side, not a defect here. The harness treats a
+  503 as an abort, not a failure, which is correct.
