@@ -38,6 +38,9 @@ jobs:
     # and 26.04 in the next. 26.04 is GA and is where the alias is heading; a
     # later image is a deliberate edit here, not something that happens to us.
     runs-on: ubuntu-26.04
+    # A run takes about a minute. GitHub's default is 360, so a hung test would
+    # hold a runner for six hours before anyone hears about it.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
