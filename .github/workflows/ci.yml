@@ -72,7 +72,10 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Run the deterministic layer
-        run: uv run --python ${{ matrix.python }} pytest -q
+        # --locked makes a uv.lock that disagrees with pyproject.toml an error.
+        # Without it uv re-locks on the runner and tests a resolution nobody
+        # committed, so CI would pass on dependencies the repo does not pin.
+        run: uv run --locked --python ${{ matrix.python }} pytest -q
 
       - name: Assert no model call escaped into the test run
         # tools.py and review.py must never import a model client. This greps
