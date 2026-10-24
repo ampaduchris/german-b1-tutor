@@ -403,3 +403,77 @@ def test_skipped_runs_are_never_scored_as_misses():
     summary = regression.summarise([run])
     assert all(s["runs_scored"] == 0 for s in summary["per_sentence"].values())
     assert summary["all_passed"] is False
+
+
+# --------------------------------------------------------------------------
+# 503: retried once at the request level. 429: never retried.
+# --------------------------------------------------------------------------
+
+from google.adk.models.llm_request import LlmRequest  # noqa: E402
+from google.adk.models.llm_response import LlmResponse  # noqa: E402
+from google.genai import errors as genai_errors  # noqa: E402
+from google.genai import types  # noqa: E402
+
+UNAVAILABLE = {"error": {"code": 503, "message": "high demand", "status": "UNAVAILABLE"}}
+EXHAUSTED = {"error": {"code": 429, "message": "quota", "status": "RESOURCE_EXHAUSTED"}}
+
+
+def _scripted_gemini(monkeypatch, failures):
+    """Make the real Gemini call raise each error in `failures`, then answer."""
+    attempts = []
+
+    async def fake(self, llm_request, stream=False):
+        attempts.append(1)
+        if len(attempts) <= len(failures):
+            raise failures[len(attempts) - 1]
+        yield LlmResponse(content=types.Content(role="model", parts=[types.Part(text="ok")]))
+
+    monkeypatch.setattr(regression.Gemini, "generate_content_async", fake)
+    monkeypatch.setattr(regression, "RETRY_503_PAUSE", 0)
+    regression.RETRIES_503.clear()
+    return attempts
+
+
+def _drain(model):
+    async def go():
+        return [r async for r in model.generate_content_async(LlmRequest())]
+    return asyncio.run(go())
+
+
+def test_a_503_is_retried_once_and_recorded(monkeypatch):
+    """Google out of capacity says nothing about the system; one retry, on the record."""
+    attempts = _scripted_gemini(monkeypatch, [genai_errors.ServerError(503, UNAVAILABLE)])
+    out = _drain(regression.RetryOn503(model=agent.MODEL))
+    assert [r.content.parts[0].text for r in out] == ["ok"]
+    assert len(attempts) == 2
+    assert len(regression.RETRIES_503) == 1
+    assert regression.RETRIES_503[0]["message"] == "high demand"
+
+
+def test_a_second_503_still_aborts(monkeypatch):
+    """One retry, not a loop: a run that keeps hitting 503 must still end."""
+    err = genai_errors.ServerError(503, UNAVAILABLE)
+    attempts = _scripted_gemini(monkeypatch, [err, err, err])
+    with pytest.raises(genai_errors.ServerError):
+        _drain(regression.RetryOn503(model=agent.MODEL))
+    assert len(attempts) == 2
+    assert len(regression.RETRIES_503) == 1
+
+
+def test_a_429_is_never_retried(monkeypatch):
+    """The quota ceiling is data. Retrying would hide it."""
+    attempts = _scripted_gemini(monkeypatch, [genai_errors.ClientError(429, EXHAUSTED)])
+    with pytest.raises(genai_errors.ClientError):
+        _drain(regression.RetryOn503(model=agent.MODEL))
+    assert len(attempts) == 1
+    assert regression.RETRIES_503 == []
+
+
+def test_the_harness_agent_changes_only_the_transport():
+    """agent.py is untouched; the harness wraps the model and nothing else."""
+    plain, wrapped = agent.build_agent(), regression.harness_agent()
+    assert isinstance(wrapped.model, regression.RetryOn503)
+    assert wrapped.model.model == plain.model == agent.MODEL
+    assert wrapped.instruction == plain.instruction
+    assert [t.__name__ for t in wrapped.tools] == [t.__name__ for t in plain.tools]
+    assert wrapped.before_model_callback is plain.before_model_callback

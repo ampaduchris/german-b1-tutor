@@ -21,7 +21,7 @@ each naming the trigger that would justify it.
 
 ```bash
 uv sync                  # Python 3.10+, exact pins from uv.lock
-uv run pytest            # 168 tests, no API key, no model call
+uv run pytest            # 172 tests, no API key, no model call
 ```
 
 A key is only needed for `agent.py`, `scripts/smoke_test.py` and
