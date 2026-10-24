@@ -1489,3 +1489,58 @@ held the PR; a re-run passed and it was merged.
 - HTTP 503 from the API has now interrupted both a smoke test and a regression
   run. It is capacity on Google's side, not a defect here. The harness treats a
   503 as an abort, not a failure, which is correct.
+
+---
+
+## Harness: a transient 503 is retried once; a 429 still is not
+Date: 2026-10-24
+
+Issue #22, PR #23. Changes `scripts/regression.py` only. `agent.py`,
+`tools.py` and `prompts/tutor.md` are untouched, so their hashes in the
+baseline still identify the system under test.
+
+### Built
+- `scripts/regression.py` — `RetryOn503`, a subclass of ADK's `Gemini`;
+  `harness_agent()`, which wraps the model of `agent.build_agent()`;
+  `RETRY_503_PAUSE = 60`; `retries_503` per run in the JSON; a "503 retries"
+  line in the report.
+- `tests/test_regression_harness.py` — 4 tests. Suite: 168 -> 172.
+- `README.md`, `CONTRIBUTING.md` — the test count.
+
+### Decisions taken
+- Retry a 503 once, approved by Chris on 2026-10-24 after two baseline runs
+  died on it. A 429 is still never retried: Session 3's reason stands, because
+  a retry would hide the quota ceiling. A 503 is Google out of capacity, which
+  says nothing about the quota or about the system under test.
+- At the model-request level, not the turn level. A tool only runs once a
+  response has arrived, so a failed request has no side effects to repeat.
+  Re-sending a whole turn could write the same `log_error` line twice and skew
+  the grading.
+- One retry, 60 s later. A 503 that persists past a minute is not a blip, and
+  the run should end and say so rather than wait.
+- In the harness, not in `agent.py`. The baseline's agent hash keeps meaning
+  "the system under test", and the tutor's own runtime behaviour on a 503 is
+  out of scope here. The smoke test's no-retry rule (Session 1) also stands.
+
+### Verification results
+- H1 PASS — 172 tests, no key. The 4 new tests use a scripted `Gemini`: a 503
+  is retried once and recorded, a second 503 aborts after exactly two attempts,
+  a 429 aborts after one attempt with nothing recorded, and the wrapped agent
+  has the same model name, instruction, tools and callbacks.
+- H2 PASS — the wrapper changes nothing the model is asked. The zero-quota
+  request capture, driven once with the plain agent and once with the wrapped
+  one, reports IDENTICAL REQUESTS across all five requests.
+- H3 — the evidence behind the change. The full runs of 2026-10-17 and
+  2026-10-24 both aborted with HTTP 503 at the 16th call, the first of the
+  Aufgabe phase, after 15 calls each. Both Gespräch halves were 5/5 exact,
+  on google-adk 2.11.0 with google-genai 2.29.0 and 2.31.0 respectively.
+- [NOT VERIFIED] The retry against a real 503; only scripted ones so far. The
+  next full run will show it in its "503 retries" line if Google is busy.
+- [NOT VERIFIED] Whether a request that fails with 503 counts against the
+  20-a-day free quota.
+
+### For the next session
+- v1.0.0: run the full regression early on a free build day, just after the
+  quota resets (midnight Pacific, 09:00 Berlin). Both failed runs started
+  around 13:20 Berlin time on a Saturday. Record the "503 retries" count with
+  the result.
