@@ -67,6 +67,11 @@ because they hide the free-tier ceiling behind a spinner, and the ceiling is
 information you need. Measured ceiling on this key: 20 requests per day and 5
 per minute, and one run of five sentences costs about 12.
 
+A 503 is different: Google out of capacity, which says nothing about the quota
+or about the system under test. One model request that gets a 503 is retried
+once, after RETRY_503_PAUSE seconds, and every retry is recorded in the run's
+JSON and in the report. A second 503 aborts the run as before.
+
 Exit codes: 0 everything passed - 1 a category or an exact obligation failed
 - 2 usage error - 3 a run could not complete (quota, network, no key).
 """
@@ -90,6 +95,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from dotenv import load_dotenv  # noqa: E402
+from google.adk.models.google_llm import Gemini  # noqa: E402
 from google.adk.runners import InMemoryRunner  # noqa: E402
 from google.genai import errors as genai_errors  # noqa: E402
 from google.genai import types  # noqa: E402
@@ -384,6 +390,51 @@ def restore(original: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
+# A 503 retry, recorded. See the module docstring for why a 429 gets none.
+RETRY_503_PAUSE = 60.0
+RETRIES_503: list[dict] = []
+
+
+class RetryOn503(Gemini):
+    """Gemini, except a 503 on one model request is retried once.
+
+    At the request level, not the turn level, on purpose. A tool only runs
+    after the model's response arrives, so repeating a request that failed can
+    never repeat a side effect. Re-sending a whole turn could write the same
+    log_error line twice and skew the grading.
+    """
+
+    async def generate_content_async(self, llm_request, stream: bool = False):
+        yielded = False
+        try:
+            async for response in super().generate_content_async(llm_request, stream):
+                yielded = True
+                yield response
+            return
+        except genai_errors.ServerError as err:
+            # Partial output already went to the caller: retrying would duplicate it.
+            if err.code != 503 or yielded:
+                raise
+            RETRIES_503.append({"at": datetime.now().isoformat(timespec="seconds"),
+                                "pause_seconds": RETRY_503_PAUSE,
+                                "message": err.message})
+            await asyncio.sleep(RETRY_503_PAUSE)
+        async for response in super().generate_content_async(llm_request, stream):
+            yield response
+
+
+def harness_agent():
+    """agent.build_agent(), with the model wrapped in RetryOn503.
+
+    agent.py is left alone, so its hash in the baseline still identifies the
+    system under test. Only the transport around the model call changes, and
+    the requests the model receives are the same.
+    """
+    built = agent.build_agent()
+    built.model = RetryOn503(model=agent.MODEL)
+    return built
+
+
 async def one_turn(runner, session_id: str, text: str) -> str:
     """Send one message, return the tutor's final text. Same shape as agent.turn."""
     message = types.Content(role="user", parts=[types.Part(text=text)])
@@ -401,7 +452,7 @@ def skipped_run(index: int, reason: str) -> dict:
     return {
         "run": index, "model": None, "started": None, "sandbox_log": None,
         "opening": None, "model_calls": 0, "aborted": reason, "quota": True,
-        "obligations": {}, "aufgabe": None,
+        "obligations": {}, "aufgabe": None, "retries_503": [],
         "sentences": [
             {
                 "n": s["n"], "text": s["text"], "planted": s["planted"],
@@ -507,6 +558,7 @@ async def run_once(index: int, model: str, pace: float) -> dict:
     tools.CARDS_PATH = sandbox / "cards.csv"
     agent.MODEL = model
     agent.STATE.update({"drafting": False, "calls": 0, "blocked": 0})
+    RETRIES_503.clear()
 
     trace: list = []
     original = instrument(trace)
@@ -524,11 +576,12 @@ async def run_once(index: int, model: str, pace: float) -> dict:
         "model_calls": 0,
         "aborted": None,
         "quota": False,
+        "retries_503": [],
     }
 
     runner = None
     try:
-        runner = InMemoryRunner(agent=agent.build_agent(), app_name=agent.APP_NAME)
+        runner = InMemoryRunner(agent=harness_agent(), app_name=agent.APP_NAME)
         session = await runner.session_service.create_session(
             app_name=agent.APP_NAME, user_id=agent.USER_ID
         )
@@ -627,6 +680,7 @@ async def run_once(index: int, model: str, pace: float) -> dict:
         if runner is not None:
             await runner.close()
         result["model_calls"] = agent.STATE["calls"]
+        result["retries_503"] = list(RETRIES_503)
         tools.LOG_PATH, tools.CARDS_PATH, agent.MODEL = real_log, real_cards, real_model
         shutil.rmtree(sandbox, ignore_errors=True)
 
@@ -695,6 +749,7 @@ def summarise(runs: list[dict]) -> dict:
             run["obligations"].get("o9_consecutive_on_target") for run in scored_runs
         ],
         "model_calls_total": sum(r["model_calls"] for r in runs),
+        "retries_503_total": sum(len(r.get("retries_503", [])) for r in runs),
     }
 
 
@@ -819,6 +874,8 @@ def report(runs: list[dict], summary: dict, before: str, after: str, out: Path) 
           f"observed {summary['aufgabe_observed']}")
     print(f"  runs completed   : {summary['runs_completed']}/{summary['runs_requested']}")
     print(f"  model calls      : {summary['model_calls_total']}")
+    print(f"  503 retries      : {summary['retries_503_total']} "
+          f"(at most one per model request, {RETRY_503_PAUSE:.0f}s apart)")
     print(f"  categories ok    : {summary['categories_ok']}")
     print(f"  obligations ok   : {summary['obligations_ok']}  (2, 4, 8 - exact)")
     print(f"  obligation 9     : {summary['o9_streaks']} consecutive on target "
