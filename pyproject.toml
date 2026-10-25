@@ -1,6 +1,6 @@
 [project]
 name = "german-agent"
-version = "0.1.0"
+version = "1.0.0"
 description = "Goethe B1 Schreiben trainer: a single ADK agent with a persistent error log."
 requires-python = ">=3.10"
 
