@@ -1544,3 +1544,63 @@ baseline still identify the system under test.
   quota resets (midnight Pacific, 09:00 Berlin). Both failed runs started
   around 13:20 Berlin time on a Saturday. Record the "503 retries" count with
   the result.
+
+---
+
+## Release: v1.0.0
+Date: 2026-10-25
+
+Issue and PR in the merge commit. Brought forward from the planned Wednesday
+by Chris.
+
+### Built
+- `docs/regression-2026-10-25.json` — the v1.0.0 baseline. Only `sandbox_log`
+  is edited, to a placeholder.
+- `README.md` — the evidence table now reads from it, adds obligation 10, and
+  reports obligation 9 as measured. The August baseline stays as history.
+- `CHANGELOG.md` — new, Keep a Changelog format, section `[1.0.0]`.
+- `pyproject.toml` — `version` 0.1.0 -> 1.0.0; `uv.lock` re-locked, which CI's
+  `uv run --locked` requires.
+
+### Merged since the 2026-10-17 entry, not logged individually
+- #17 Pages link preview; #18 CI timeout; #19 google-genai 2.31.0 (pre-checked
+  and merged by the scheduled task); #20 superseded CI runs cancelled; #21
+  `--locked`. #23 has its own entry, of 2026-10-24.
+
+### Decisions taken
+- Release on a passing full run, not on the two partial runs of 2026-10-17 and
+  2026-10-24.
+- Obligation 9 reported as "not met" rather than rounded up. The miss is the
+  indicator's known blind spot (see Verification), and the indicator does not
+  gate the result.
+- `docs/sample-session.md` left as the August transcript and labelled as such,
+  rather than regenerated: it is a record of what that run produced.
+
+### Verification results
+- R1 PASS — `scripts/regression.py --runs 1`, 2026-10-25 13:27 CET, pinned
+  `gemini-3.6-flash`, google-adk 2.11.0, google-genai 2.31.0. Exit 0, ALL PASSED.
+  5/5 exact; obligation 2 on all five corrections; obligations 4 and 8
+  honoured; Aufgabe completed with the time limit and word count stated, 0
+  model calls while drafting, and both planted errors found (register,
+  word_order); 0 malformed lines; the real log untouched; 17 calls.
+- R2 — obligation-9 indicator 2 consecutive, minimum 3, not met. The third
+  follow-up, straight after an adjective-ending correction, asked for a
+  description of the new car using two adjectives. That is aimed at the error,
+  but it shares no content words with the opening question, which is all the
+  indicator measures. On 2026-08-06 it was 5.
+- R3 PASS — closes the 2026-10-24 entry's [NOT VERIFIED] retry item. A real
+  HTTP 503 hit one request at 13:28:41; it was retried once after 60 s and the
+  run completed. Recorded in `retries_503`.
+- R4 PASS — the prompt, agent and tools hashes match the files and are
+  identical to the 2026-08-06 baseline: only the libraries changed between the
+  two runs.
+- R5 PASS — 172 tests with `--locked`, no key; `uv lock --check` clean.
+- Still [NOT VERIFIED]: whether a 503'd request counts against the daily quota,
+  and acceptance criteria 3 and 4.
+
+### For the next session
+- The next baseline is due when `tutor.md`, `agent.py` or `tools.py` changes,
+  or after a model-client upgrade that the request capture flags.
+- If the obligation-9 indicator keeps reading low on follow-ups that drill the
+  corrected category, measure on-target against the category rather than the
+  opener. That is a change to the grader, so it needs its own decision.
