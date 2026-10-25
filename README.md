@@ -60,26 +60,38 @@ raising an error.
 
 Claiming a prompt has eleven obligations is easy. `scripts/regression.py` plants
 five errors with known categories and grades the model by set comparison, in a
-sandbox, against a pinned model. The most recent run is committed as
-[`docs/regression-2026-08-06.json`](docs/regression-2026-08-06.json):
+sandbox, against a pinned model. The v1.0.0 baseline is committed as
+[`docs/regression-2026-10-25.json`](docs/regression-2026-10-25.json): one full
+run against `gemini-3.6-flash`, with google-adk 2.11.0 and google-genai 2.31.0.
 
 | Measure | Result |
 |---|---|
 | Categories: expected vs observed | **5/5 exact** |
-| Obligation 2 — `log_error` on every correction | honoured |
+| Obligation 2 — `log_error` on every correction | honoured, 5/5 |
 | Obligation 4 — `get_recent_errors()` at start | honoured |
 | Obligation 8 — `get_focus()` before any output | honoured |
-| Obligation 9 — follow-up on topic *(indicator, not proof)* | 5 consecutive, minimum 3 |
+| Obligation 10 — Aufgabe: limits stated, silent while drafting | honoured: 0 model calls while drafting, both planted errors found |
+| Obligation 9 — follow-up on topic *(indicator, not proof)* | 2 consecutive, minimum 3: **not met** (see below) |
 | Malformed log lines | 0 |
 | Real log modified by the run | no — SHA-256 identical before and after |
-| Model calls spent | 17 |
+| Model calls spent | 17, plus 1 retry after a transient HTTP 503 |
+
+The obligation-9 indicator counts content words a follow-up shares with the
+session's opening question. Here the third follow-up came straight after an
+adjective-ending correction and asked the learner to describe their new car
+using two adjectives. That is aimed at the error, but it shares no words with
+the opener, so the indicator scores it off target. That blind spot is why it is
+an indicator and does not gate the result: deciding it exactly would need a
+model, and a model grader would share the blind spots of the model under test.
 
 The baseline stores the SHA-256 of `tutor.md`, `agent.py` and `tools.py`
 alongside the numbers, because a result is only comparable to another result if
 the prompt that produced it was the same prompt. All three still match the files
-in this commit.
+in this commit, and they are the same three as in the August baseline
+([`docs/regression-2026-08-06.json`](docs/regression-2026-08-06.json)), kept as
+history: between the two runs only the libraries changed.
 
-**[Read the full transcript, verbatim →](docs/sample-session.md)**
+**[Read a full transcript, verbatim →](docs/sample-session.md)** (from the August run)
 
 ## Using it
 
@@ -128,7 +140,8 @@ Documentation:
 | `docs/tutorial.md` | The agent-architecture concepts the build teaches. |
 | `docs/build-sessions.md` | The five build prompts, one per session. |
 | `docs/sample-session.md` | A real run, verbatim: five planted errors, the agent's replies, and the log lines they produced. |
-| `docs/regression-2026-08-06.json` | The committed regression baseline the table above is read from. |
+| `docs/regression-2026-10-25.json` | The v1.0.0 regression baseline the table above is read from. |
+| `docs/regression-2026-08-06.json` | The first complete baseline, on the libraries of August 2026. Kept as history. |
 | `CONTRIBUTING.md` | How to propose a change, and the rules a pull request has to keep. |
 | `docs/explainer.html` | Interactive walkthrough of the architecture. [Live version](https://ampaduchris.github.io/german-b1-tutor/), or open the file in a browser. |
 
