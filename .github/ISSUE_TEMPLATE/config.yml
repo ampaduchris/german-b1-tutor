@@ -1,0 +1,10 @@
+# Shown on the "New issue" chooser, beside the deferred-extension form.
+# Blank issues stay allowed: a bug report should not need a form.
+blank_issues_enabled: true
+contact_links:
+  - name: Roadmap — what is deliberately not built
+    url: https://github.com/ampaduchris/german-b1-tutor/issues?q=label%3Adeferred
+    about: Six extensions are already recorded, each with the trigger that would justify it. Check here before proposing a feature.
+  - name: Contributing guide
+    url: https://github.com/ampaduchris/german-b1-tutor/blob/main/CONTRIBUTING.md
+    about: The rules a change has to keep, and how to propose one.
