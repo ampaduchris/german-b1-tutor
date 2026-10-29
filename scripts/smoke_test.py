@@ -115,6 +115,12 @@ def is_auth_failure(err: genai_errors.APIError) -> bool:
 
 
 async def main() -> int:
+    """Send one German instruction to MODEL and print the reply.
+
+    Returns the exit codes listed in the module docstring: 0 for a reply, 2
+    for a rejected key, 3 for any other API failure or an empty reply. Code 1,
+    a missing key, exits from load_key() before any call is made.
+    """
     silence_adk_logging()
     load_key()
 
