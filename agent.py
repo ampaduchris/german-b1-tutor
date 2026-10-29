@@ -170,6 +170,13 @@ async def gespraech(runner, session_id: str) -> None:
 
 
 async def main() -> int:
+    """Check the key and the log, ask for a mode, and run one session.
+
+    Exit codes: 0 when the session ends normally; 1 when GOOGLE_API_KEY is
+    empty, the log cannot be appended to, or no mode is chosen (each exits with
+    a readable sentence, not a traceback); 3 when a model call fails, with the
+    free-tier quota named explicitly on HTTP 429.
+    """
     logging.getLogger("google_adk").addHandler(logging.NullHandler())
     logging.getLogger("google_adk").propagate = False  # else 120 lines per failure
     load_dotenv(PROJECT_ROOT / ".env")
