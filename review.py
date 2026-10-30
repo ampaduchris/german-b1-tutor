@@ -199,6 +199,11 @@ def _oneline(value: object) -> str:
 
 
 def _delta(now: int, before: int) -> str:
+    """The week-on-week change as a table cell: "0", or signed, as "+2" or "-3".
+
+    The sign is always shown, so a column of deltas reads at a glance without
+    comparing the two counts beside it.
+    """
     change = now - before
     return "0" if change == 0 else f"{change:+d}"
 
@@ -513,6 +518,11 @@ def run(anchor: date | None = None) -> tuple[str, Path]:
 
 
 def _parse_args(argv: list[str] | None) -> date:
+    """The anchor date from the command line, defaulting to today.
+
+    Rejects a malformed or future date through parser.error, which prints one
+    sentence and exits 2, the usage-error code, before anything is read.
+    """
     parser = argparse.ArgumentParser(
         prog="review.py",
         description="Weekly review of data/log.jsonl. No model calls, ever.",
@@ -544,6 +554,12 @@ def _parse_args(argv: list[str] | None) -> date:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """The CLI: run the review, print the report, return the exit code.
+
+    0 on success, otherwise the ReviewError's code (1 log unreadable, 3 output
+    unwritable) after one sentence on stderr. A usage error exits 2 from inside
+    _parse_args rather than returning.
+    """
     # Cron gives a process no locale, so stdout may default to ASCII and every
     # umlaut in this report would raise UnicodeEncodeError halfway through. This
     # is the single line that makes the difference between a review and a
