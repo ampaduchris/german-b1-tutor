@@ -381,6 +381,11 @@ def instrument(trace: list) -> dict:
 
 
 def restore(original: dict) -> None:
+    """Undo instrument(): rebind each tool name on `agent` to its original.
+
+    `original` is the dict instrument() returned. run_once calls this in its
+    `finally`, so a run that aborts still leaves production's tools in place.
+    """
     for name, fn in original.items():
         setattr(agent, name, fn)
 
@@ -891,6 +896,12 @@ def report(runs: list[dict], summary: dict, before: str, after: str, out: Path) 
 
 
 async def main_async(argv: list[str] | None = None) -> int:
+    """The CLI: run the sentences `--runs` times, write the JSON, print the report.
+
+    Returns 0 if every run passed, 1 if a category or an exact obligation
+    failed, 3 if there was no key, a run could not complete, or data/log.jsonl
+    changed. A usage error exits 2 from inside argparse rather than returning.
+    """
     parser = argparse.ArgumentParser(
         prog="regression.py",
         description="Run the five planted-error sentences through the tutor.",
@@ -973,6 +984,7 @@ async def main_async(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Synchronous entry point: run main_async and return its exit code."""
     return asyncio.run(main_async(argv))
 
 
