@@ -15,6 +15,7 @@ import io
 import sys
 
 import pytest
+from google.genai import types
 
 import agent
 import tools
@@ -272,3 +273,49 @@ def test_tool_error_returns_the_failure_to_the_model(capsys):
     back = agent.tool_error(tool, {"category": "Kasus"}, None, ValueError("bad"))
     assert back == {"error": "ValueError: bad"}
     assert "log_error failed" in capsys.readouterr().err
+
+
+# --------------------------------------------------------------------------
+# turn(): what the learner sees of one exchange
+# --------------------------------------------------------------------------
+
+
+def test_turn_prints_only_the_final_responses_text(monkeypatch):
+    """Every other test stubs turn() out, so its filter was never pinned.
+
+    A turn streams intermediate events (tool calls, tool results, partial
+    text) before the final answer. Only final events reach the learner, and
+    within them only parts that carry text: a function-call part or an empty
+    final event must not print "None" or crash the join. The fake runner
+    stands in for ADK's, so nothing here reaches a model.
+    """
+    class Event:
+        def __init__(self, final, content):
+            self.final, self.content = final, content
+
+        def is_final_response(self):
+            return self.final
+
+    def content(*parts):
+        return types.Content(role="model", parts=list(parts))
+
+    calls = []
+
+    class FakeRunner:
+        async def run_async(self, user_id, session_id, new_message):
+            calls.append((user_id, session_id, new_message))
+            yield Event(False, content(types.Part(text="Ich rufe log_error auf.")))
+            yield Event(True, None)
+            yield Event(True, content(
+                types.Part(text="  Gut gemacht. "),
+                types.Part(function_call=types.FunctionCall(name="get_focus", args={})),
+                types.Part(text="Weiter so.\n"),
+            ))
+
+    out = asyncio.run(agent.turn(FakeRunner(), "sid", "Ich habe gestern gearbeitet."))
+
+    assert out == "Gut gemacht. Weiter so."
+    (user_id, session_id, message), = calls
+    assert (user_id, session_id) == (agent.USER_ID, "sid")
+    assert message.role == "user"
+    assert [p.text for p in message.parts] == ["Ich habe gestern gearbeitet."]
