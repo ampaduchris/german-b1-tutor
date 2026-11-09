@@ -12,10 +12,11 @@ hand-run check in one of those sessions and is now pinned.
 
 import asyncio
 import io
+import logging
 import sys
 
 import pytest
-from google.genai import types
+from google.genai import errors, types
 
 import agent
 import tools
@@ -319,3 +320,56 @@ def test_turn_prints_only_the_final_responses_text(monkeypatch):
     assert (user_id, session_id) == (agent.USER_ID, "sid")
     assert message.role == "user"
     assert [p.text for p in message.parts] == ["Ich habe gestern gearbeitet."]
+
+
+# --------------------------------------------------------------------------
+# main(): a failed model call ends the session with a sentence, not a traceback
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("code, names_quota", [(429, True), (503, False)])
+def test_main_reports_a_failed_model_call_and_exits_3(
+    monkeypatch, tmp_path, capsys, code, names_quota
+):
+    """The exit code main() documents, and the quota sentence only on a 429.
+
+    The free tier runs out in normal use, so a 429 must read as a limit and
+    not as a bug, while any other failure must not be blamed on the quota. The
+    runner is closed either way. The runner, the key and the log path are all
+    stand-ins, so nothing here reaches a model or the real log or .env.
+    """
+    class FakeSessions:
+        async def create_session(self, app_name, user_id):
+            return type("Session", (), {"id": "sid"})()
+
+    closed = []
+
+    class FakeRunner:
+        session_service = FakeSessions()
+
+        def __init__(self, agent, app_name):
+            pass
+
+        async def close(self):
+            closed.append(True)
+
+    async def failing_turn(runner, session_id, text):
+        raise errors.APIError(code, {"error": {"message": "nope", "status": "X"}})
+
+    # main() silences this logger for the process. Keep that out of other tests.
+    adk_logger = logging.getLogger("google_adk")
+    monkeypatch.setattr(adk_logger, "propagate", adk_logger.propagate)
+    monkeypatch.setattr(adk_logger, "handlers", list(adk_logger.handlers))
+    monkeypatch.setattr(agent, "load_dotenv", lambda path: None)
+    monkeypatch.setenv("GOOGLE_API_KEY", "not-a-real-key")
+    monkeypatch.setattr(agent, "LOG_PATH", tmp_path / "log.jsonl")
+    monkeypatch.setattr(agent, "InMemoryRunner", FakeRunner)
+    monkeypatch.setattr(agent, "ask_mode", lambda: "gespraech")
+    monkeypatch.setattr(agent, "turn", failing_turn)
+
+    assert asyncio.run(agent.main()) == 3
+
+    err = capsys.readouterr().err
+    assert f"Model call failed: HTTP {code}. nope" in err
+    assert ("free-tier quota" in err) is names_quota
+    assert closed == [True]
