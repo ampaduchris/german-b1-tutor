@@ -94,6 +94,25 @@ def test_ranked_breaks_ties_in_first_seen_order(log):
     assert list(review._ranked(tools._blocking(entries))) == ["passiv", "case"]
 
 
+def test_a_tie_at_the_cut_names_the_categories_left_out(log):
+    """Only three categories get a section, but a tie at rank 3 makes the cut
+    arbitrary. The report must say who else was level, or the reader takes the
+    top three as the whole story when a fourth cost just as many points."""
+    write(log, [
+        (5, "word_order", "blocking"), (4, "word_order", "blocking"),
+        (3, "case", "blocking"), (2, "passiv", "blocking"),
+        (1, "konjunktiv_ii", "blocking"),
+    ])
+    report, _ = review.run()
+    top = report.split("## Top 3 blocking categories")[1].split("## Week on week")[0]
+
+    assert "### 1. `word_order` — 2" in top
+    assert "### 3. `passiv` — 1" in top
+    assert "`konjunktiv_ii` —" not in top, "a fourth category got a section"
+    assert "4 categories had blocking errors this week" in top
+    assert "Note: rank 3 is tied at 1 with `konjunktiv_ii`." in top
+
+
 def test_focus_breaks_ties_by_recency_not_first_seen(log):
     """The two tie-breaks differ on purpose, each mirroring its own function.
 
