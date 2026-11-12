@@ -469,6 +469,33 @@ def test_a_429_is_never_retried(monkeypatch):
     assert regression.RETRIES_503 == []
 
 
+def test_a_503_after_partial_output_is_not_retried(monkeypatch):
+    """A stream that already yielded must not restart: the caller would see it twice."""
+    attempts = []
+
+    async def fake(self, llm_request, stream=False):
+        attempts.append(1)
+        yield LlmResponse(content=types.Content(role="model", parts=[types.Part(text="Hal")]))
+        raise genai_errors.ServerError(503, UNAVAILABLE)
+
+    monkeypatch.setattr(regression.Gemini, "generate_content_async", fake)
+    monkeypatch.setattr(regression, "RETRY_503_PAUSE", 0)
+    regression.RETRIES_503.clear()
+    seen = []
+
+    async def go():
+        async for r in regression.RetryOn503(model=agent.MODEL).generate_content_async(
+            LlmRequest(), stream=True
+        ):
+            seen.append(r.content.parts[0].text)
+
+    with pytest.raises(genai_errors.ServerError):
+        asyncio.run(go())
+    assert seen == ["Hal"]
+    assert len(attempts) == 1
+    assert regression.RETRIES_503 == []
+
+
 def test_the_harness_agent_changes_only_the_transport():
     """agent.py is untouched; the harness wraps the model and nothing else."""
     plain, wrapped = agent.build_agent(), regression.harness_agent()
