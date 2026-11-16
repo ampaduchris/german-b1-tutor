@@ -20,7 +20,7 @@ each naming the trigger that would justify it.
 ## Setup
 
 ```bash
-uv sync                  # Python 3.10+, exact pins from uv.lock
+uv sync                  # Python 3.11+, exact pins from uv.lock
 uv run pytest            # 177 tests, no API key, no model call
 ```
 
@@ -32,7 +32,7 @@ requests a day, and a full regression run spends about 17 of them.
 
 - **`tools.py` and `review.py` never call a model.** CI fails the build if either
   imports a model client.
-- **Tests never need a key.** CI runs with no secret configured, on Python 3.10
+- **Tests never need a key.** CI runs with no secret configured, on Python 3.11
   through 3.13. A test that needs a key has stopped testing the deterministic
   layer.
 - **The four closed vocabularies stay closed.** `category`, `severity`, `mode`
