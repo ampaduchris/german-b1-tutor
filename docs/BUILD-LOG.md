@@ -1607,7 +1607,7 @@ by Chris.
 
 ## Standard: brought inside the build standard (portfolio session 0.3)
 
-- Date: 2026-11-16. Model: Sonnet 5.5. Effort: medium, read from the app's session record. Pull request: https://github.com/ampaduchris/german-b1-tutor/pull/39. Minutes taken: about 5 (clock reading, 15:09 to 15:14 UTC).
+- Date: 2026-11-16. Model: Sonnet 5.5. Effort: medium, read from the app's session record. Pull request: https://github.com/ampaduchris/german-b1-tutor/pull/39. Minutes taken: about 3 (clock reading, 15:09 to about 15:12 UTC).
 - Disclosure, correcting the record: before 15 November 2026 an automated routine approved and merged pull requests once checks passed. From 15 November 2026 the owner approves and merges every pull request. Earlier entries that say a pull request was merged do not say who approved it, and none is edited.
 - Changed: em dashes removed from `README.md`; status line, authorship note and the authorship qualification added to `README.md`; `CLAUDE.md` added.
 - Python range changed from 3.10 to 3.13 to 3.11 to 3.13, to match the standard's floor of 3.11. Changed in `pyproject.toml`, the CI matrix, `README.md`, `CONTRIBUTING.md` and the pull request template. `uv.lock` regenerated: it drops `exceptiongroup` and `tomli`, which only 3.10 needed. 3.14 is not tested; whether every dependency publishes wheels for it was not checked.
