@@ -4,7 +4,7 @@ name: CI
 # workflow deliberately sets no GOOGLE_API_KEY and holds no secret. If a test
 # ever needs one, that test has stopped testing the deterministic layer.
 #
-# Python 3.10 is the floor pyproject.toml commits to; all four are run so the
+# Python 3.11 is the floor pyproject.toml commits to; all three are run so the
 # floor is a measured claim rather than an aspiration.
 #
 # Actions are pinned to full commit SHAs, with the release in a trailing
@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        python: ["3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

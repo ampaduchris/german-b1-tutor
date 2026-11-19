@@ -6,7 +6,7 @@ Closes #
 
 See [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the reasoning behind each item.
 
-- [ ] CI is green on Python 3.10 to 3.13, with no warnings.
+- [ ] CI is green on Python 3.11 to 3.13, with no warnings.
 - [ ] No test needs an API key or calls a model.
 - [ ] `tools.py` and `review.py` still never import a model client.
 - [ ] A `google-adk` or `google-genai` update has been through the request
