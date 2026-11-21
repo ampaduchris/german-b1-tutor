@@ -1613,3 +1613,12 @@ by Chris.
 - Python range changed from 3.10 to 3.13 to 3.11 to 3.13, to match the standard's floor of 3.11. Changed in `pyproject.toml`, the CI matrix, `README.md`, `CONTRIBUTING.md` and the pull request template. `uv.lock` regenerated: it drops `exceptiongroup` and `tomli`, which only 3.10 needed. 3.14 is not tested; whether every dependency publishes wheels for it was not checked.
 - Verified: 177 tests pass on Python 3.11 with `--locked` and no key. CI result for 3.12 and 3.13 is on the pull request.
 - [NOT VERIFIED] `SECURITY.md`, `docs/DEVIATIONS.md`, `portfolio.yml` and `docs/reviews/` are still absent from this repo. They are outside this session's list and are not added here.
+
+## Portfolio file: `portfolio.yml` added (portfolio session 0.4)
+
+- Date: 2026-11-21. Model: Sonnet 5.5. Effort: high, read from the app's session record. Pull request: https://github.com/ampaduchris/german-b1-tutor/pull/40.
+- Changed: `portfolio.yml` added, with the nine fields the build standard names. Nothing else.
+- Decision: `tests` is 172 and `release` is `v1.0.0`, because the file describes the release. 172 was measured on 2026-11-21 by exporting the `v1.0.0` tag and running `pytest --collect-only` offline from its lockfile. `main` holds 177 tests, five added after the release, so the README's figure of 177 describes `main`.
+- Decision: `pitch` is a one-sentence summary written for the portfolio site; the README keeps its own wording.
+- [NOT VERIFIED] The count was collected, not run to completion. The 25 Oct 2026 regression entry above records 172 passing at release.
+- [NOT VERIFIED] `SECURITY.md`, `docs/DEVIATIONS.md` and `docs/reviews/` are still absent from this repo (see the entry above).

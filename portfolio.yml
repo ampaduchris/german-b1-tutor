@@ -1,0 +1,9 @@
+name: german-b1-tutor
+pitch: A writing trainer for the Goethe-Zertifikat B1 German exam, built on one agent and an append-only error log.
+stack: [python, uv, google-adk, google-genai, pytest]
+tests: 172
+release: v1.0.0
+released_on: 2026-10-25
+demo_url: https://ampaduchris.github.io/german-b1-tutor/
+repo_url: https://github.com/ampaduchris/german-b1-tutor
+example_pr_url: https://github.com/ampaduchris/german-b1-tutor/pull/39
